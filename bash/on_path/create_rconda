@@ -1,0 +1,33 @@
+set -e
+set -o nounset
+
+if [ "$#" -ne 1 ]
+then
+    echo "You must enter exactly 1 command line arguments <ENV_NAME>"
+    exit
+fi
+
+if [ -d /home/arrao/miniconda3/envs/${1} ]
+then 
+    echo "Env with name ${1} exits at `/home/arrao/miniconda3/envs/`"
+    exit
+fi
+
+
+source /home/arrao/miniconda3/etc/profile.d/conda.sh
+conda create -y -n ${1}
+conda activate ${1}
+
+mkdir -p ${CONDA_PREFIX}/etc/conda/activate.d
+mkdir -p ${CONDA_PREFIX}/etc/conda/deactivate.d
+mkdir -p /home/arrao/r_libraries/${1}
+
+cat <<ACTD >> ${CONDA_PREFIX}/etc/conda/activate.d/env_vars.sh
+#!/bin/sh
+export R_LIBS=/home/arrao/r_libraries/${1}
+ACTD
+
+cat <<DACTD >> ${CONDA_PREFIX}/etc/conda/deactivate.d/env_vars.sh
+#!/bin/sh
+unset R_LIBS
+DACTD

@@ -1,0 +1,1 @@
+0 3 * * * bash /data/shared/krummellab/arrao/scripts/cron/move_logs.sh

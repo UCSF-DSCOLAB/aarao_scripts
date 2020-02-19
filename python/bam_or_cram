@@ -1,0 +1,34 @@
+#!/usr/bin/env python
+from __future__ import print_function
+import gzip
+import os
+import sys
+
+if len(sys.argv) == 1 or set(sys.argv).intersection(['-h', '--help']):
+    print("A program to identify if a file is bam or cram based on the magic header\n\n"
+          "Usage: bam_or_cram <FILE 1> <FILE 2> <FILE 3> ... <FILE n>\n")
+    sys.exit(1)
+
+for seqfile in sys.argv[1:]:
+    _seqfile = os.path.abspath(seqfile)
+    if not os.path.exists(_seqfile):
+        print(seqfile, "ERROR:UNABLE_TO_LOCATE", sep='\t')
+    else: 
+        with open(_seqfile) as iff:
+             x = iff.read(4)
+        if x == 'CRAM':
+            print(seqfile, "CRAM", sep='\t')
+        elif x[:3] == '\x1f\x8b\x08':
+            # Could be a regular gzip file. Ensure it's actually a bam
+            iff = gzip.open(_seqfile, 'r')
+            x = iff.read(4)
+            iff.close()
+            
+            if x == 'BAM\x01':
+                print(seqfile, "BAM", sep='\t')
+            else:
+                print(seqfile, "(B)GZIP_BUT_NOT_BAM", sep='\t')
+        else:
+            print(seqfile, "NEITHER", sep='\t')
+
+    
