@@ -25,9 +25,13 @@ def main():
     parser.add_argument('--hugo_map', type=str, default=os.path.join(os.environ['KLAB'], 
                                                                      'ipi/data/refs/hg38_files',
                                                                      'hugo_to_ensg.tsv'))
-    parser.add_argument('--counts_dir', type=str,
+    parser.add_argument('--data_dir', type=str,
                         default=os.path.join(os.environ['KLAB'],
-                                             'arrao/data/gene_expression/counts'),
+                                             'arrao/data/gene_expression/<DATA_TYPE>'),
+                        required=False)
+    parser.add_argument('--data_type', type=str,
+                        default='counts',
+                        choices=['tpm', 'counts'],
                         required=False)
     #parser.add_argument('--blacklist', type=str, default=None, required=False)
     params = parser.parse_args()
@@ -41,19 +45,23 @@ def main():
     hugo_map = pd.read_csv(params.hugo_map, sep='\t', header=0, index_col=0)
     hugo_map.drop_duplicates(keep=False, inplace=True)
 
+    if params.data_dir.endswith('<DATA_TYPE>'):
+        params.data_dir = params.data_dir[:-11] + params.data_type
+
+    assert os.path.exists(params.data_dir)
 
     df = None
-    for counts_file in os.listdir(params.counts_dir):
-        plate = re.sub('_gene_counts_table.tsv', '', re.sub('[.]counts_table$', '', counts_file))
+    for data_file in os.listdir(params.data_dir):
+        plate = data_file.split('_')[0]
         if plate in ['plate5', 'plateNova']:
             continue
-        counts_file = os.path.join(params.counts_dir, counts_file)
-        if os.path.isdir(counts_file):
+        data_file = os.path.join(params.data_dir, data_file)
+        if os.path.isdir(data_file):
             continue
-        print('Processing %s' % counts_file)
+        print('Processing %s' % data_file)
         if plates and plate not in samples['plate'].unique():
             continue
-        _df = pd.read_csv(counts_file, sep='\t', header=0, index_col=0, nrows=0)
+        _df = pd.read_csv(data_file, sep='\t', header=0, index_col=0, nrows=0)
         _samples = [re.sub(r'\.r0', '', s) for s in _df.columns]
         if plates:
             # Assuming that if you know th eplate, you know the exact sample name
@@ -64,7 +72,7 @@ def main():
             print('Identified %s samples to pull: %s' % (len(_samples), ', '.join(_samples)))
             for s in _samples:
                 samples.loc[s, 'plate'] = plate
-            _df = pd.read_csv(counts_file, sep='\t', header=0,
+            _df = pd.read_csv(data_file, sep='\t', header=0,
                               index_col=0, usecols=[0]+list(_samples.values()))
             if df is None:
                 df = _df
@@ -82,7 +90,7 @@ def main():
     df.columns = [re.sub('.r0$', '', s) for s in df.columns]
     df = df[samples.index]
     df.index = [(hugo_map.loc[x, 'HUGO'] if x in hugo_map.index else x) for x in df.index]
-    df.to_csv(''.join([os.path.splitext(params.samples)[0], '_counts.tsv']), sep='\t', header=True,
+    df.to_csv(''.join([os.path.splitext(params.samples)[0], '_{}.tsv'.format(params.data_type)]), sep='\t', header=True,
               index=True)
 
 
