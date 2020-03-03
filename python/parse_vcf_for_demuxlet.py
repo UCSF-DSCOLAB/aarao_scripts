@@ -117,6 +117,12 @@ def parse_vcf(vcf_file, out_file, gzip_vcf, annotations):
 
 
 def main():
+    '''
+    Assumes the vcf was created using: 
+               plink --file <PREFIX_TO_INPUT_.ped/.map> \
+                     --recode vcf \
+                     --out <PREFIX_TO_OUTPUT_.vcf>
+    '''
     parser = argparse.ArgumentParser()
     parser.add_argument('vcf', help='The vcf file produced by Plink')
     parser.add_argument('gtf', help='The gtf file used to create 10X indexes')
