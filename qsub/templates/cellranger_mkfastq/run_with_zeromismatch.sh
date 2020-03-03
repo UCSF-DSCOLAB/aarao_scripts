@@ -12,6 +12,7 @@ run_mem=`echo "${MEMORY} * 0.95 / 1" | bc`
 
 cellranger mkfastq --csv=${SAMPLESHEET} \
                    --run=${BCLDIR} \
+                   --barcode-mismatches=0 \
                    --lanes=1,2 \
                    --output-dir=${scratch_dir}/fastqs \
                    --localcores=${PBS_NUM_PPN} \

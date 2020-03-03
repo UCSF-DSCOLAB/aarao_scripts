@@ -1,1 +1,1 @@
-python qsub_from_template.py generate make_md5sums_template.sh PLATE=26 NODEREQS="nodes=1:ppn=24" MEMREQS=vmem=20gb LOGFOLDER=/data/shared/krummellab/arrao/logs
+This folder contains templates to run tools via qsub on new files in new locations.

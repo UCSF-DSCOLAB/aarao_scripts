@@ -26,9 +26,9 @@ mkdir -p ${log_dir}
 OUTDIR=${bcl_dir}_fastqs
 uuid=`randomstr 10`
 echo qsub -v "UUID=${uuid},MEMORY=${MEMORY},OUTDIR=${OUTDIR},SAMPLESHEET=${sample_sheet},BCLDIR=${bcl_dir}" \
-     -e ${log_dir}/cellranger_vdj_${uuid}_$(date "+%Y_%m_%d_%H_%M_%S").err \
-     -o ${log_dir}/cellranger_vdj_${uuid}_$(date "+%Y_%m_%d_%H_%M_%S").out \
-     -N cellranger_vdj_${uuid} \
+     -e ${log_dir}/cellranger_mkfastq_${uuid}_$(date "+%Y_%m_%d_%H_%M_%S").err \
+     -o ${log_dir}/cellranger_mkfastq_${uuid}_$(date "+%Y_%m_%d_%H_%M_%S").out \
+     -N cellranger_mkfastq_${uuid} \
      -l ${NODEREQS} \
      -l ${MEMREQS} \
      -l feature=n34 \
