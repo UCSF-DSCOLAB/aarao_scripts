@@ -46,6 +46,8 @@ demux_by_inflexions <- function(sobj, sample_names, inflexions=NULL, visual_outl
   ##             form as `raw_plots` but only below the diagonal.
   ##         cell_ids : a vector of identities, one for each cell in the input assay,
   ##             in the same cell order as the assay provided.
+  ##         summary : A summary of the number and percent of cells identified as either an
+  ##             expected sample, or as a MULTIPLET, or as NEGATIVE for all HTOs.
   ##         colors : named chr of colors used in the plots. Can be used to
   ##             tweak colors according to your needs.
   
@@ -57,6 +59,7 @@ demux_by_inflexions <- function(sobj, sample_names, inflexions=NULL, visual_outl
     raw_plots = NULL,
     scaled_plots = NULL,
     cell_ids = NULL,
+    summary = NULL,
     colors = NULL
   )
   assay_obj <- GetAssay(sobj, assay=assay_name)
@@ -105,7 +108,7 @@ demux_by_inflexions <- function(sobj, sample_names, inflexions=NULL, visual_outl
   all_inflexions <- list()
   results[['background_plots']] <- list()
   for (sample in names(sample_names)) {
-    if (is.null(results[['inflexions']][[`sample`]])){
+    if (is.null(results[['inflexions']][[`sample`]])) {
       dens <- density(hashes[[`sample`]], n = dens_windows)
       maxima <- which.max(dens$y)
       #all_inflexions[[sample]] = data.frame(row.names = c('x', 'y'))
@@ -122,7 +125,7 @@ demux_by_inflexions <- function(sobj, sample_names, inflexions=NULL, visual_outl
                                  msg=paste0('Could not identify an inflexion for ', sample, 
                                             '. Consider increasing inflexion_searchspace.'))
           results[['inflexions']][[sample]] <- all_inflexions[[sample]][1]
-          results[['secondary_inflexions']][[sample]] <- all_inflexions[[sample]][c(2:num_inflexions)]
+          results[['secondary_inflexions']][[sample]] <- all_inflexions[[sample]][c(2:num_inflexions)][!is.na(all_inflexions[[sample]][c(2:num_inflexions)])]
           break
         }
         s = sign((dens$y[i]-dens$y[i-1])/(dens$x[i]-dens$x[i-1]))
@@ -216,8 +219,9 @@ demux_by_inflexions <- function(sobj, sample_names, inflexions=NULL, visual_outl
     }
   }
   print("Demuxed the following identities")
-  print(data.frame(rbind(table(raw_hashes$sample_name), round(100*table(raw_hashes$sample_name)/length(raw_hashes$sample_name), 2))), row.names=c('counts', 'pct'))
-  print('You can plot a grid with ')
+  results[['summary']] <- data.frame(rbind(table(raw_hashes$sample_name), round(100*table(raw_hashes$sample_name)/length(raw_hashes$sample_name), 2)), row.names=c('counts', 'pct'))
+  print(results[['summary']])
+  print('You can plot a grid with: ')
   print(paste0("plot_grid(plotlist=unlist(results[['raw_plots']], recursive = FALSE), ncol=", l, ")"))
   print(paste0("plot_grid(plotlist=unlist(results[['scaled_plots']], recursive = FALSE), ncol=", l, ")"))
   print(paste0("plot_grid(plotlist=results[['background_plots']], ncol=2)"))
