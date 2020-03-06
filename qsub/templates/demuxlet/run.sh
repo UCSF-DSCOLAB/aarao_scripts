@@ -8,7 +8,7 @@ conda activate demuxlet
 mkdir /scratch/arrao/demuxlet_${SAMPLE} && cd /scratch/arrao/demuxlet_${SAMPLE} 
 trap "{ rm -rf /scratch/arrao/demuxlet_${SAMPLE} ; }" EXIT
 
-demuxlet --sam ${SAMFILE} \ 
+demuxlet --sam ${SAMFILE} \
          --vcf ${VCF} \
          --field GT \
          --out ${SAMPLE}
