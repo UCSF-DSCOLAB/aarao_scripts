@@ -60,10 +60,12 @@ if (args$SPECIES == "human"){
   species_args$vars_to_regress <- c("percent.mt", "percent.ribo", "S.Score", "G2M.Score")
   species_args$mito_regex <- "^MT-"
   species_args$reference_dir <- paste(args$GENESET_DIR,"GRCh38", sep="/")
+  species_args$CD45 <- "PTPRC"
 } else if (args$SPECIES == "mouse"){
   species_args$vars_to_regress <- c("percent.mt", "percent.ribo", "percent.cc")
   species_args$mito_regex <- "^mt-"
   species_args$reference_dir <- paste(args$GENESET_DIR,"GRCm38", sep="/")
+  species_args$CD45 <- "Ptprc"
 } else {
   stop("SPECIES must be one of `human` or `mouse`", call.=FALSE)
 }
@@ -80,6 +82,7 @@ setwd(args$OUT_FOLDER)
 source(paste(args$RSCRIPTS_DIR, "identify_hto_clusters.R", sep="/"))
 source(paste(args$RSCRIPTS_DIR, "generate_profile_plot.R", sep="/"))
 source(paste(args$RSCRIPTS_DIR, "demux_HTOs_by_inflexions.R", sep="/"))
+source(paste(args$RSCRIPTS_DIR, "TriPlot.R", sep="/"))
 
 
 remove_rplots <- FALSE
@@ -532,6 +535,21 @@ for (i in sample_list){
     pdf(paste0(i, "/", i, "_umap.pdf"))
     print(DimPlot(sobjs[[i]], label=TRUE))
     dev.off()
+    
+    if (args$AB_ASSAY_NAME %in% names(sobjs[[i]]@assays)){
+      # View the clusters UMAP
+      pdf(paste0(i, "/", i, "_samples_umap.pdf"))
+      print(DimPlot(sobjs[[i]], group.by="sample_name"))
+      dev.off()
+    }
+    
+    pdf(paste0(i, "/", i, "_immune_triplot_umap.pdf"))
+    tryCatch(expr=print(TriPlot(sobjs[[i]], features=species_args$CD45, reduction.use="umap", group.by="seurat_clusters")),
+             error=function(e) {print(paste0("WARNING: Could not print CD45(",
+                                species_args$CD45,
+                                ") expression since it was not found in the object"))
+                                ggplot() + theme_void()},
+             finally=function(e){dev.off()})
     assign(i, sobjs[[i]])
     save(list=i, file=paste0(i, "/", i, "_scTransformed_processed.RData"))
     next
