@@ -35,7 +35,7 @@ fi
 function print_help() {
   echo -e "${USAGE_HELPTEXT}"
   echo -e "${REQUIRED_HELPTEXT}"
-  if [ ${LOCAL_OPTIONAL_HELPTEXT-"EMPTY"} != "EMPTY" ]
+  if [[ ${LOCAL_OPTIONAL_HELPTEXT-"EMPTY"} != "EMPTY" ]]
   then
     echo -e "${LOCAL_OPTIONAL_HELPTEXT-''}"
   fi
