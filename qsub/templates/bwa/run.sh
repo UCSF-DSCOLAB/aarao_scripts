@@ -22,20 +22,18 @@ bwa mem -t ${PBS_NUM_PPN} \
         ${FQ1} \
         ${FQ2} > ${SAMPLE}.sam
 
-samtools view -C \
-              -o ${SAMPLE}.cram \
+samtools view -c \
+              -o ${SAMPLE}.bam \
               -@ ${PBS_NUM_PPN} \
-              -T ${BWAREF}.fa \
               ${SAMPLE}.sam \
               && rm ${SAMPLE}.sam
 
-samtools sort ${SAMPLE}.cram \
+samtools sort ${SAMPLE}.bam \
               -@ ${PBS_NUM_PPN} \
-              --reference ${BWAREF}.fa \
-              -o ${SAMPLE}_sorted.cram \
-              && rm ${SAMPLE}.cram
+              -o ${SAMPLE}_sorted.bam \
+              && rm ${SAMPLE}.bam
 
-samtools index ${SAMPLE}_sorted.cram
+samtools index ${SAMPLE}_sorted.bam
 
 mkdir -p ${OUTDIR}
-mv ${SAMPLE}_sorted.cram ${SAMPLE}_sorted.cram.crai ${OUTDIR}/
+mv ${SAMPLE}_sorted.bam ${SAMPLE}_sorted.bam.bai ${OUTDIR}/

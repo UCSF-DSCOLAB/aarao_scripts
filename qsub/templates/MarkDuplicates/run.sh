@@ -22,7 +22,7 @@ java -Xmx${MEMORY}g  \
     ASSUME_SORTED=true \
     CREATE_INDEX=true \
     INPUT=${SAMFILE} \
-    OUTPUT=${out_base}.${extension} \
+    OUTPUT=${out_base}.bam \
     METRICS_FILE=${out_base}.duplication_metrics
 
 mv /scratch/arrao/MarkDuplicates_${SAMPLE}/${out_base}* ${out_dir}/
