@@ -10,7 +10,7 @@ trap "{ rm -rf /scratch/arrao/bwa_${SAMPLE} ; }" EXIT
 getRG(){
  zcat ${1} | 
  head -1 | 
- awk -F":" -v SAMPLE=${2} '{print "@RG\\tID:"$3"."$2"."SAMPLE"."$4"\\tSM:"SAMPLE"\\tPU:"$3"."$2"."SAMPLE"."$4"\\tBC:"$NF}'
+ awk -F":" -v SAMPLE=${2} '{print "@RG\\tID:"$3"."$2"."SAMPLE"."$4"\\tPL:ILLUMINA\\tSM:"SAMPLE"\\tPU:"$3"."$2"."SAMPLE"."$4"\\tBC:"$NF}'
 }
 
 RG=`getRG ${FQ1} ${SAMPLE}`
@@ -22,7 +22,7 @@ bwa mem -t ${PBS_NUM_PPN} \
         ${FQ1} \
         ${FQ2} > ${SAMPLE}.sam
 
-samtools view -c \
+samtools view -b \
               -o ${SAMPLE}.bam \
               -@ ${PBS_NUM_PPN} \
               ${SAMPLE}.sam \
