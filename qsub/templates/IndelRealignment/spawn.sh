@@ -13,7 +13,7 @@ EOF
 read -r -d '' LOCAL_OPTIONAL_HELPTEXT  << EOF || true
 ## OPTIONAL PARAMETERS ##
 GATKVERSION   : The version of gatk to use (4.0.2.1)
-GENOMEREF      : A path to the reference genome fasta (/krummellab/data1/ipi/data/refs/bwa/hg38.fa)
+GENOMEREF      : A path to the reference genome fasta (/krummellab/data1/ipi/data/refs/hg38_files/hg38.fa)
 EOF
 
 if [ ${GATKVERSION-"EMPTY"} == "EMPTY" ]

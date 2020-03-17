@@ -13,7 +13,7 @@ EOF
 read -r -d '' LOCAL_OPTIONAL_HELPTEXT  << EOF || true
 ## OPTIONAL PARAMETERS ##
 PICARDVERSION   : The version of picard to use (2.22.0)
-GENOMEREF      : A path to the reference genome fasta (/krummellab/data1/ipi/data/refs/bwa/hg38.fa)
+GENOMEREF      : A path to the reference genome fasta (/krummellab/data1/ipi/data/refs/hg38_files/hg38.fa)
 EOF
 
 if [ ${PICARDVERSION-"EMPTY"} == "EMPTY" ]
