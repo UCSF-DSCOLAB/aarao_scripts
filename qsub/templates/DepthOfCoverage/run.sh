@@ -8,11 +8,11 @@ trap "{ rm -rf /scratch/arrao/DepthOfCoverage_${SAMPLE} /scratch/arrao/${SAMPLE}
 
 out_dir=$(dirname ${SAMFILE})
 
-if [ ${INTERVALSFILE-"EMPTY"} == "NONE" ]
+if [ ${INTERVALFILE-"EMPTY"} == "NONE" ]
 then
     INTERVALSTRING=" "
 else
-    INTERVALSTRING="--intervals ${INTERVALSFILE}"
+    INTERVALSTRING="--intervals ${INTERVALFILE}"
 fi
 
 java -Djava.io.tmpdir=/scratch/arrao/${SAMPLE}_javatmp -Xmx${MEMORY}g -jar $GATK_HOME/GenomeAnalysisTK.jar \
