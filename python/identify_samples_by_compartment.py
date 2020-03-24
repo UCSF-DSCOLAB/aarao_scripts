@@ -40,7 +40,7 @@ def main():
     if params.clinical:
         dfc = pd.read_csv(params.clinical, sep='\t', header=0, index_col=None)
         df = pd.merge(df, dfc, on='patient', how='left')
-        df[df.isna()] = 'unknown'
+        df.fillna('unknown')
 
     df.index = df['patient']    
     additional_groups = [g for g in df.columns if g not in ['patient']]
