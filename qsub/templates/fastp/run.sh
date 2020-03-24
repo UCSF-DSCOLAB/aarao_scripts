@@ -26,13 +26,18 @@ getExtension() {
 
 extension=`getExtension ${FQ1}`
 
+FQ2argstring=" "
+if [ ${FQ2} != "NONE" ]
+then
+      FQ2argstring="-I ${FQ2} \
+                    -O `basename ${FQ2%${extension}}`_trimmed${extension} \
+                    --adapter_sequence_r2 CTGTCTCTTATACACATCT"
+fi
 fastp -i ${FQ1} \
-      -I ${FQ2} \
       -o `basename ${FQ1%${extension}}`_trimmed${extension} \
-      -O `basename ${FQ2%${extension}}`_trimmed${extension} \
-      --length_required 20 \
       --adapter_sequence CTGTCTCTTATACACATCT \
-      --adapter_sequence_r2 CTGTCTCTTATACACATCT \
+      ${FQ2argstring} \
+      --length_required 20 \
       --correction  \
       --trim_poly_g  \
       --thread ${PBS_NUM_PPN} \

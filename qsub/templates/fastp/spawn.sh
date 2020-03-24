@@ -7,10 +7,19 @@ source $(dirname ${0})/../template_argparse.sh
 read -r -d '' REQUIRED_HELPTEXT  << EOF || true
 ## REQUIRED PARAMETERS ##
 FQ1       : A path to FQ1
-FQ2       : A path to FQ2
 SAMPLE    : The name of the sample
 OUTDIR    : A folder within which we will place the output dir
 EOF
+
+read -r -d '' LOCAL_OPTIONAL_HELPTEXT  << EOF || true
+## OPTIONAL PARAMETERS ##
+FQ2       : A path to FQ2
+EOF
+
+if [ ${FQ2-"EMPTY"} == "EMPTY" ]
+then
+    FQ2="NONE"
+fi
 
 echo "Received the following options:"
 echo "FQ1      : "${FQ1-""}
@@ -18,7 +27,7 @@ echo "FQ2      : "${FQ2-""}
 echo "SAMPLE   : "${SAMPLE-""}
 echo "OUTDIR   : "${OUTDIR-""}
 
-if [ ${FQ1-"ERR"} == "ERR" ] || [ ${FQ2-"ERR"} == "ERR" ] || [ ${SAMPLE-"ERR"} == "ERR" ] || [ ${OUTDIR-"ERR"} == "ERR" ]
+if [ ${FQ1-"ERR"} == "ERR" ] || [ ${SAMPLE-"ERR"} == "ERR" ] || [ ${OUTDIR-"ERR"} == "ERR" ]
 then
     echo -e "\nERROR: Required arguments cannot be empty\n"
     print_help  
