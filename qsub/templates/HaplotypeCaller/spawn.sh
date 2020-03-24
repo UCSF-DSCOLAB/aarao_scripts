@@ -12,6 +12,7 @@ EOF
 
 read -r -d '' LOCAL_OPTIONAL_HELPTEXT  << EOF || true
 ## OPTIONAL PARAMETERS ##
+INTERVALFILE   : An intervals file to calculate over, use NONE for no itervals (/krummellab/data1/ipi/data/refs/hg38_files/GRCh38_CCDS_sorted.bed.gz)
 GATKVERSION   : The version of gatk to use (4.0.2.1)
 GENOMEREF      : A path to the reference genome fasta (/krummellab/data1/ipi/data/refs/hg38_files/hg38.fa)
 EOF
@@ -26,10 +27,22 @@ then
     GENOMEREF="/krummellab/data1/ipi/data/refs/hg38_files/hg38.fa"
 fi
 
+if [ ${INTERVALFILE-"EMPTY"} == "EMPTY" ]
+then
+    INTERVALFILE="/krummellab/data1/ipi/data/refs/hg38_files/GRCh38_CCDS_sorted.bed.gz"
+fi
+
+if [ ${DBSNPFILE-"EMPTY"} == "EMPTY" ]
+then
+    DBSNPFILE="/krummellab/data1/ipi/data/databases/dbsnp/hg38/b151/00-All.vcf.gz"
+fi
+
 
 echo "Received the following options:"
 echo "SAMPLE   : "${SAMPLE-""}
 echo "SAMFILE  : "${SAMFILE-""}
+echo "INTERVALFILE  : "${INTERVALFILE-""}
+echo "DBSNPFILE  : "${DBSNPFILE-""}
 echo "GATKVERSION  : "${GATKVERSION-""}
 echo "GENOMEREF  : "${GENOMEREF-""}
 
@@ -46,7 +59,7 @@ echo -e "\n"
 
 MEMORY=`echo "$(echo ${MEMREQS} | sed 's/[^0-9]*//g')*0.9 / 1" | bc`
 
-qsub -v "SAMFILE=$(readlink -f ${SAMFILE}),SAMPLE=${SAMPLE},GENOMEREF=$(readlink -f ${GENOMEREF}),MEMORY=${MEMORY},GATKVERSION=${GATKVERSION}" \
+qsub -v "SAMFILE=$(readlink -f ${SAMFILE}),SAMPLE=${SAMPLE},GENOMEREF=$(readlink -f ${GENOMEREF}),INTERVALFILE=${INTERVALFILE},DBSNPFILE=${DBSNPFILE},MEMORY=${MEMORY},GATKVERSION=${GATKVERSION}" \
      -e ${LOGDIR}/HaplotypeCaller_${SAMPLE}_$(date "+%Y_%m_%d_%H_%M_%S").err \
      -o ${LOGDIR}/HaplotypeCaller_${SAMPLE}_$(date "+%Y_%m_%d_%H_%M_%S").out \
      -N HaplotypeCaller_${SAMPLE} \

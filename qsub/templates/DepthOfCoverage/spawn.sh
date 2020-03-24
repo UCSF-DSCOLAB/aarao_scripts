@@ -27,6 +27,12 @@ then
     GENOMEREF="/krummellab/data1/ipi/data/refs/hg38_files/hg38.fa"
 fi
 
+if [ ${INTERVALFILE-"EMPTY"} == "EMPTY" ]
+then
+    INTERVALFILE="/krummellab/data1/ipi/data/refs/hg38_files/GRCh38_CCDS_sorted.bed.gz"
+fi
+
+
 echo "Received the following options:"
 echo "SAMPLE   : "${SAMPLE-""}
 echo "SAMFILE  : "${SAMFILE-""}
@@ -47,7 +53,7 @@ echo -e "\n"
 
 MEMORY=`echo "$(echo ${MEMREQS} | sed 's/[^0-9]*//g')*0.9 / 1" | bc`
 
-qsub -v "SAMFILE=$(readlink -f ${SAMFILE}),SAMPLE=${SAMPLE},GENOMEREF=$(readlink -f ${GENOMEREF}),MEMORY=${MEMORY},GATKVERSION=${GATKVERSION}" \
+qsub -v "SAMFILE=$(readlink -f ${SAMFILE}),SAMPLE=${SAMPLE},GENOMEREF=$(readlink -f ${GENOMEREF}),INTERVALFILE=${INTERVALFILE},MEMORY=${MEMORY},GATKVERSION=${GATKVERSION}" \
      -e ${LOGDIR}/DepthOfCoverage_${SAMPLE}_$(date "+%Y_%m_%d_%H_%M_%S").err \
      -o ${LOGDIR}/DepthOfCoverage_${SAMPLE}_$(date "+%Y_%m_%d_%H_%M_%S").out \
      -N DepthOfCoverage_${SAMPLE} \
