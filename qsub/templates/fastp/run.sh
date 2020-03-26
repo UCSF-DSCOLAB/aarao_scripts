@@ -27,22 +27,23 @@ getExtension() {
 extension=`getExtension ${FQ1}`
 
 FQ2argstring=" "
-if [ ${FQ2} != "NONE" ]
+if [ $(basename ${FQ2}) != "EMPTY" ]
 then
       FQ2argstring="-I ${FQ2} \
                     -O `basename ${FQ2%${extension}}`_trimmed${extension} \
-                    --adapter_sequence_r2 CTGTCTCTTATACACATCT"
+                    --adapter_sequence_r2 CTGTCTCTTATACACATCT \
+                    --correction "
 fi
+
 fastp -i ${FQ1} \
       -o `basename ${FQ1%${extension}}`_trimmed${extension} \
       --adapter_sequence CTGTCTCTTATACACATCT \
       ${FQ2argstring} \
       --length_required 20 \
-      --correction  \
       --trim_poly_g  \
       --thread ${PBS_NUM_PPN} \
       -j ${SAMPLE}_fastp.json \
       -h ${SAMPLE}_fastp.html
 
 mkdir -p ${OUTDIR}
-mv /scratch/arrao/fastp_${SAMPLE} ${OUTDIR}/
+mv /scratch/arrao/fastp_${SAMPLE}/* ${OUTDIR}/

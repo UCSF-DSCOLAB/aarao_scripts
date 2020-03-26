@@ -18,7 +18,7 @@ EOF
 
 if [ ${FQ2-"EMPTY"} == "EMPTY" ]
 then
-    FQ2="NONE"
+    FQ2="EMPTY"
 fi
 
 echo "Received the following options:"
@@ -38,7 +38,7 @@ echo "NODEREQS : "${NODEREQS}
 echo "MEMREQS  : "${MEMREQS}
 echo -e "\n"
 
-qsub -v "FQ1=$(readlink -f ${FQ1}),FQ2=$(readlink -f ${FQ2}),SAMPLE=${SAMPLE},OUTDIR=$(readlink -f ${OUTDIR})" \
+qsub -v "FQ1=$(readlink -e ${FQ1}),FQ2=$(readlink -f ${FQ2}),SAMPLE=${SAMPLE},OUTDIR=$(readlink -f ${OUTDIR})" \
      -e ${LOGDIR}/fastp_${SAMPLE}_$(date "+%Y_%m_%d_%H_%M_%S").err \
      -o ${LOGDIR}/fastp_${SAMPLE}_$(date "+%Y_%m_%d_%H_%M_%S").out \
      -N fastp_${SAMPLE} \
