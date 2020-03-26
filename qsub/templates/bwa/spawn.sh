@@ -94,8 +94,8 @@ qsub -v "FQ1=$(readlink -e ${FQ1}),\
          RGSM=${RGSM},\
          RGPU=${RGPU},\
          RGBC=${RGBC}" \
-     -e ${LOGDIR}/demuxlet_${SAMPLE}_$(date "+%Y_%m_%d_%H_%M_%S").err \
-     -o ${LOGDIR}/demuxlet_${SAMPLE}_$(date "+%Y_%m_%d_%H_%M_%S").out \
+     -e ${LOGDIR}/bwa_${SAMPLE}_$(date "+%Y_%m_%d_%H_%M_%S").err \
+     -o ${LOGDIR}/bwa_${SAMPLE}_$(date "+%Y_%m_%d_%H_%M_%S").out \
      -N bwa_${SAMPLE} \
      -l ${NODEREQS} \
      -l ${MEMREQS} \
