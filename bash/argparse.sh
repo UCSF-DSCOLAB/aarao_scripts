@@ -9,7 +9,7 @@ do
 case $i in
     *=*)
     declare "${i%%=*}"="${i#*=}"
-    RECEIVED_NAMED_ARGS+=("${i%=*}")
+    RECEIVED_NAMED_ARGS+=("${i/=*/}")
     shift # past argument=value
     ;;
     *)
@@ -18,6 +18,6 @@ case $i in
 esac
 done
 
-echo "ARGPARGE: RECEIVED_NAMED_ARGS="${RECEIVED_NAMED_ARGS[@]-""}
-echo "ARGPARSE: POSITIONAL_ARGS="${POSITIONAL_ARGS[@]-""}
+echo "ARGPARSE: RECEIVED_NAMED_ARGS = ( "${RECEIVED_NAMED_ARGS[@]-""}" )"
+echo "ARGPARSE: POSITIONAL_ARGS = ( "${POSITIONAL_ARGS[@]-""}" )"
 echo -e "\n"
