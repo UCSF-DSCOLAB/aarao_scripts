@@ -85,15 +85,15 @@ echo "MEMREQS  : "${MEMREQS}
 echo -e "\n"
 
 qsub -v "FQ1=$(readlink -e ${FQ1}),\
-         FQ2=$(readlink -f ${FQ2}),\
-         SAMPLE=${SAMPLE},\
-         OUTDIR=$(readlink -f ${OUTDIR}),\
-         BWAREF=$(readlink -f ${BWAREF}),\
-         RGID=${RGID},\
-         RGPL=${RGPL},\
-         RGSM=${RGSM},\
-         RGPU=${RGPU},\
-         RGBC=${RGBC}" \
+FQ2=$(readlink -f ${FQ2}),\
+SAMPLE=${SAMPLE},\
+OUTDIR=$(readlink -f ${OUTDIR}),\
+BWAREF=$(readlink -f ${BWAREF}),\
+RGID=${RGID},\
+RGPL=${RGPL},\
+RGSM=${RGSM},\
+RGPU=${RGPU},\
+RGBC=${RGBC}" \
      -e ${LOGDIR}/bwa_${SAMPLE}_$(date "+%Y_%m_%d_%H_%M_%S").err \
      -o ${LOGDIR}/bwa_${SAMPLE}_$(date "+%Y_%m_%d_%H_%M_%S").out \
      -N bwa_${SAMPLE} \
