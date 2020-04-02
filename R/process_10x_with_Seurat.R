@@ -82,7 +82,7 @@ setwd(args$OUT_FOLDER)
 source(paste(args$RSCRIPTS_DIR, "identify_hto_clusters.R", sep="/"))
 source(paste(args$RSCRIPTS_DIR, "generate_profile_plot.R", sep="/"))
 source(paste(args$RSCRIPTS_DIR, "demux_HTOs_by_inflexions.R", sep="/"))
-source(paste(args$RSCRIPTS_DIR, "TriPlot.R", sep="/"))
+source(paste(args$RSCRIPTS_DIR, "TriplePlot.R", sep="/"))
 
 
 remove_rplots <- FALSE
@@ -374,28 +374,28 @@ for (i in sample_list){
         rm(list=i)
         if (args$AB_ASSAY_NAME %in% names(sobjs[[i]]@assays)){
           print(paste0("Generating `", i, "_filtered_singlets.RData` ..."))
-          if (!file.exists(paste0(i, "/ADT_map.tsv"))){
-            print("Cannot continue without an ADT_map.tsv file")
+          if (!file.exists(paste0(i, "/IDX_map.tsv"))){
+            print("Cannot continue without an IDX_map.tsv file")
             next
           }
-          ADT_map <- read.table(paste0(i, "/ADT_map.tsv"), sep="\t",
+          IDX_map <- read.table(paste0(i, "/IDX_map.tsv"), sep="\t",
                                 header=TRUE, row.names=1, stringsAsFactors=FALSE)
           # Hacky but it works ¯\_(ツ)_/¯
-          ADT_map <- sapply(colnames(ADT_map), function(x) { 
-                              y = ADT_map[,x, drop=T]
-                              names(y) = rownames(ADT_map)
+          IDX_map <- sapply(colnames(IDX_map), function(x) { 
+                              y = IDX_map[,x, drop=T]
+                              names(y) = rownames(IDX_map)
                               y
                               }, simplify = FALSE, USE.NAMES = TRUE)
-          sample_names <- names(ADT_map$sample_name)
+          sample_names <- names(IDX_map$sample_name)
           sample_names <- sample_names[!sample_names %in% c("NEGATIVE", "MULTIPLET", "OTHER")]
-          suppmgg <- assert_that(all(sample_names %in% rownames(sobjs[[i]]@assays$ADT)),
-                                 msg="Not all hashtags in ADT_map.tsv are in the seurat object")
+          suppmgg <- assert_that(all(sample_names %in% rownames(sobjs[[i]]@assays[[args$AB_ASSAY_NAME]])),
+                                 msg="Not all hashtags in IDX_map.tsv are in the seurat object")
           keep_features <- c(rownames(sobjs[[i]]@assays$RNA),
                              sample_names)
           sobjs[[i]] <- subset(sobjs[[i]], features = keep_features)
 
-          if ("threshold" %in% names(ADT_map)){
-            inflexions <- ADT_map$threshold[sample_names]
+          if ("threshold" %in% names(IDX_map)){
+            inflexions <- IDX_map$threshold[sample_names]
             if (any(is.na(inflexions))){
               inflexions <- NULL
             } else {
@@ -405,8 +405,8 @@ for (i in sample_list){
             inflexions <- NULL
           }
 
-          if ("color" %in% names(ADT_map)){
-            sample_colors <- ADT_map$color
+          if ("color" %in% names(IDX_map)){
+            sample_colors <- IDX_map$color
             suppmsg <- assert_that(all(c("NEGATIVE", "MULTIPLET", "OTHER") %in% names(sample_colors)),
                                    msg=paste0("Cannot use user-provided colors if values ",
                                               "for NEGATIVE,  MULTIPLET, and OTHER are not ",
@@ -424,7 +424,7 @@ for (i in sample_list){
           }
 
           demux_results <- demux_by_inflexions(sobjs[[i]],
-                                               sample_names=ADT_map$sample_name[sample_names],
+                                               sample_names=IDX_map$sample_name[sample_names],
                                                inflexions=inflexions,
                                                sample_colors=sample_colors,
                                                assay_name=args$AB_ASSAY_NAME)
@@ -447,17 +447,17 @@ for (i in sample_list){
           dev.off()
 
           sobjs[[i]]@meta.data$sample_name <- factor(demux_results$cell_ids,
-                                                     levels=sort(unique(demux_results$cell_ids)))
+                                                     levels=c(unname(sort(IDX_map$sample_name)), 'MULTIPLET', 'NEGATIVE'))
 
-          drf <- data.frame(sample_name=unlist(ADT_map$sample_name[sample_names]),  
+          drf <- data.frame(sample_name=unlist(IDX_map$sample_name[sample_names]),  
                   threshold=demux_results[['inflexions']])
-          write.table(drf, file=paste0(i, "/ADT_map_generated.tsv"),
+          write.table(drf, file=paste0(i, "/IDX_map_generated.tsv"),
                       quote=FALSE, row.names=TRUE, col.names=TRUE, sep="\t")
 
           capture.output(demux_results[['secondary_inflexions']], 
-                         file=paste0(i, "/ADT_additional_inflexions.txt"))
+                         file=paste0(i, "/IDX_additional_inflexions.txt"))
 
-          write.table(demux_results[["summary"]], file=paste0(i, "/ADT_summary.tsv"),
+          write.table(demux_results[["summary"]], file=paste0(i, "/IDX_summary.tsv"),
                       quote=FALSE, row.names=TRUE, col.names=TRUE, sep="\t")
 
           Idents(sobjs[[i]]) <- sobjs[[i]]@meta.data$sample_name
@@ -468,6 +468,8 @@ for (i in sample_list){
           dev.off()
           sobjs[[i]] <- subset(sobjs[[i]], 
                                cells=colnames(sobjs[[i]])[!sobjs[[i]]$sample_name %in% c('NEGATIVE', 'MULTIPLET')])
+          sobjs[[i]]$sample_name <- factor(sobjs[[i]]$sample_name,
+                                           levels=unname(sort(IDX_map$sample_name)))
           assign(i, sobjs[[i]])
           save(list=i, file=paste0(i, "/", i, "_filtered_singlets.RData"))
           next

@@ -92,6 +92,7 @@ demux_by_inflexions <- function(sobj, sample_names, inflexions=NULL, visual_outl
                                     'OTHER', sample_names), collapse=" "))
   }
   
+  results[['secondary_inflexions']] <- list()
   if (is.null(inflexions)){
     results[['inflexions']] <- list()
   } else {
