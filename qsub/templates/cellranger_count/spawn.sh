@@ -15,7 +15,7 @@ read -r -d '' LOCAL_OPTIONAL_HELPTEXT  << EOF || true
 SAMPLE         : The name of the sample (parsed from LIBRARIES_CSV by default)
 NODEREQS       : Default node requirements (default: nodes=1:ppn=32)[overrides global default]
 MEMREQS        : Default mem requirements (default: vmem=250gb)[overrides global default]
-TRANSCRIPTOME  : Path to 10S Indexes (default: /krummellab/data1/ipi/data/refs/10x/hg38)
+TRANSCRIPTOME  : Path to 10X Indexes (default: /krummellab/data1/ipi/data/refs/10x/hg38)
 CHEMISTRY      : 10X Chemistry. (default: auto)
 FEATUREREF     : Feature reference file for CITE-Seq or hashtags (default: /krummellab/data1/ipi/data/refs/10x/biolegend_totalseq_hashtags.csv)
 EOF
@@ -89,10 +89,11 @@ MEMORY=`echo "$(echo ${MEMREQS} | sed 's/[^0-9]*//g')*0.9 / 1" | bc`
 export_vars="\
 LIBRARIES_CSV=$(readlink -e ${LIBRARIES_CSV}),\
 SAMPLE=${SAMPLE},\
-OUTDIR=$(readlink -f ${OUTDIR}),\
+OUTDIR=${OUTDIR},\
 FEATUREREF=${FEATUREREF},\
 TRANSCRIPTOME=$(readlink -e ${TRANSCRIPTOME}),\
-CHEMISTRY=${CHEMISTRY}"
+CHEMISTRY=${CHEMISTRY},\
+MEMORY=${MEMORY}"
 
 qsub -v ${export_vars} \
      -e ${LOGDIR}/cellranger_count_${SAMPLE}_$(date "+%Y_%m_%d_%H_%M_%S").err \

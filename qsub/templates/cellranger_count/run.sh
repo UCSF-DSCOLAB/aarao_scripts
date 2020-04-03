@@ -21,5 +21,10 @@ cellranger count --id=${SAMPLE} \
                  --localcores=${PBS_NUM_PPN} \
                  --localmem=${MEMORY}
 
-mv /scratch/arrao/cellranger_count_${SAMPLE}/${SAMPLE}/outs/* ${OUTDIR}/
-
+if [ -f ${OUTDIR} ]
+then
+    mv /scratch/arrao/cellranger_count_${SAMPLE}/${SAMPLE}/outs ${OUTDIR}/${SAMPLE}_counts
+else
+    mkdir -p $(dirname ${OUTDIR})
+    mv /scratch/arrao/cellranger_count_${SAMPLE}/${SAMPLE}/outs ${OUTDIR}
+fi
