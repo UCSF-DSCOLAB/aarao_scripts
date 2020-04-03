@@ -4,16 +4,22 @@ set -o nounset
 
 module load CBC cellranger/3.0.2
 
-mkdir /scratch/arrao/cellranger_count_${SAMPLEID} && cd /scratch/arrao/cellranger_count_${SAMPLEID} 
-trap "{ rm -rf /scratch/arrao/cellranger_count_${SAMPLEID} ; }" EXIT
+mkdir /scratch/arrao/cellranger_count_${SAMPLE} && cd /scratch/arrao/cellranger_count_${SAMPLE} 
+trap "{ rm -rf /scratch/arrao/cellranger_count_${SAMPLE} ; }" EXIT
 
-run_mem=`echo "${MEMORY} * 0.95 / 1" | bc`
+featureref_argstring=" "
+if grep -q "Antibody Capture" ${LIBRARIES_CSV}
+then
+    featureref_argstring="--feature-ref ${FEATURE_REF} "
+fi
 
-cellranger count --id=${SAMPLEID} \
-                 --fastqs=${FASTQDIR} \
+cellranger count --id=${SAMPLE} \
+                 ${featureref_argstring} \
+                 --libraries ${LIBRARIES_CSV} \
                  --chemistry=${CHEMISTRY} \
                  --transcriptome=${TRANSCRIPTOME} \
                  --localcores=${PBS_NUM_PPN} \
-                 --localmem=${run_mem}
+                 --localmem=${MEMORY}
 
-mv ${SAMPLEID}/ ${OUTDIR}/
+mv /scratch/arrao/cellranger_count_${SAMPLE}/${SAMPLE}/outs/* ${OUTDIR}/
+
