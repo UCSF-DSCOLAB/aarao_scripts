@@ -1,0 +1,15 @@
+-- soloType CB_UMI_Simple \
+--soloCBwhitelist /path/to/whitelist \
+--soloCBstart 1 \
+--soloCBlen 16 \
+--soloUMIstart 17\
+--soloUMIlen 10 OR 12 \
+--soloBarcodeReadLength 1 \
+--soloAdapterMismatchesNmax 1 \
+--soloCBmatchWLtype 1MM_multi_pseudocounts \
+--soloStrand Forward for 3' Reverse for 5' ? \
+--soloFeatures GeneFull \
+--soloUMIdedup 1MM_All \
+--soloUMIfiltering MultiGeneUMI \
+--soloOutFileNames Solo.out/ features.tsv barcodes.tsv matrix.mtx \
+--soloCellFilter None
