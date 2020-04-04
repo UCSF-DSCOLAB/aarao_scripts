@@ -13,7 +13,8 @@ class GFFRecord(object):
 
     def __init__(self, line, prefix_chr=False):
         """
-        Converts a GFF record into a python object
+        Converts a GFF record into a python object.
+
         :param str|list line: One line from a GFF file (string, or string split by tabs)
         :param bool prefix_chr: Prefix 'chr' to the sequence name?
         """
@@ -42,11 +43,13 @@ class GFFRecord(object):
 
 
     def __repr__(self):
-        msg = 'GFF(sequence:{sequence}, gene:{gene_name}, feature:{feature}, '
+        msg = ('GFF(sequence:{sequence}, '
+               'gene:{gene_name}, '
+               'feature:{feature}, ')
 
         if getattr(self, 'transcript_id', None) is not None:
             msg += 'transcript_id:{transcript_id}, '
-            
+
         if getattr(self, 'exon_number', None) is not None:
             msg += 'exon_number:{exon_number}, '
 
@@ -78,11 +81,20 @@ class GFFRecord(object):
         except AttributeError:
             return False
 
-def read_annotation_from_gtf(gtf_handle, annotation='gene'):
+    def get(self, value, default=None):
+        if value in self.__dict__:
+            return self.__dict__[value]
+        else:
+            return default
+
+
+def read_annotation_from_gtf(gtf_handle, annotation='gene', key='gene_name', prefix_chr=False):
     """
     Read the gene annotations into a dict
     :param file gtf_handle: A file handle ot the annotation file.
     :param str annotation: An annotation type to pull from the gtf
+    :param str key: The GTF feature to use as the key for the returned dictionary
+    :param bool prefix_chr: Prefix 'chr' to the sequence name?
     :returns:  A dict of a gtf record for each record of type `annotation`
     :rtype: dict(string, GFFRecord)
     """
@@ -91,16 +103,17 @@ def read_annotation_from_gtf(gtf_handle, annotation='gene'):
         if line.startswith('#'):
             continue
         else:
-            gtf = GFFRecord(line)
+            gtf = GFFRecord(line, prefix_chr=prefix_chr)
             if gtf.feature == annotation:
-                annotations[gtf.gene_name] = gtf
+                annotations[gtf.get(key)] = gtf
     return annotations
 
-def read_annotation_from_gtf_by_chrom(gtf_handle, annotation='gene'):
+def read_annotation_from_gtf_by_chrom(gtf_handle, annotation='gene', prefix_chr=False):
     """
     Read the gene annotations into a dict of dicts
     :param file gtf_handle: A file handle ot the annotation file.
     :param str annotation: An annotation type to pull from the gtf
+    :param bool prefix_chr: Prefix 'chr' to the sequence name?
     :returns:  A dict of a gtf record for each record of type `annotation`
     :rtype: dict(string, GFFRecord)
     """
@@ -109,7 +122,7 @@ def read_annotation_from_gtf_by_chrom(gtf_handle, annotation='gene'):
         if line.startswith('#'):
             continue
         else:
-            gtf = GFFRecord(line)
+            gtf = GFFRecord(line, prefix_chr=prefix_chr)
             if gtf.feature == annotation:
                 if gtf.sequence in annotations:
                     annotations[gtf.sequence][gtf.gene_name] = gtf
