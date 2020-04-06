@@ -13,15 +13,30 @@ suppressPackageStartupMessages({
 seed = 21212
 
 args = list(
-  DATADIR=NA,  # Directory with folders containing fastqs
+  DATADIR=NA,  # Directory with folders containing the outs from `cellranger count`
   SAMPLES=NA,  # Samples to pull from the directory
   OUT_FOLDER=getwd(),  # Where to write results
   RSCRIPTS_DIR=paste(Sys.getenv("SCRIPTS"), "R", sep="/"),  # Where to find aux scripts
   GENESET_DIR=paste(Sys.getenv("KLAB"), "ipi/data/refs/10x/genesets", sep="/"),  # Where to find genesets
   SPECIES="human",  # Species to use for cell cycling and ribo
   RERUN_STAGE=FALSE,  # Should we rerun the last run stage?
-  AB_ASSAY_NAME="IDX"  # What should the antibody capture assay (if any) be called?
+  AB_ASSAY_NAME="IDX",  # What should the antibody capture assay (if any) be called?
+  TCRDIR=NA,  # Directory with folders containing the outs from `cellranger vdj --chain TR`
+  BCRDIR=NA,  # Directory with folders containing the outs from `cellranger vdj --chain IG`
   )
+
+argsClasses = list(
+  DATADIR=as.character,
+  SAMPLES=as.character,
+  OUT_FOLDER=as.character,
+  RSCRIPTS_DIR=as.character,
+  GENESET_DIR=as.character,
+  SPECIES=as.character,
+  RERUN_STAGE=as.logical,
+  AB_ASSAY_NAME=as.character,
+  TCRDIR=as.character,
+  BCRDIR=as.character
+)
 
 UserArgs = commandArgs(trailingOnly=TRUE)
 
@@ -34,19 +49,21 @@ for (i in UserArgs){
     print(paste0("WARNING: Invalid key provided : ", i, ""))
     next
   } else {
-    args[[key_val[1]]] = key_val[2]
+    args[[key_val[1]]] = argsClasses[[key_val[1]]](key_val[2])
   }
 }
 
 print("Running with arguments:")
-print(paste0("DATADIR : ", args$DATADIR))
-print(paste0("SAMPLES : ", args$SAMPLES))
-print(paste0("OUT_FOLDER  : ", args$OUT_FOLDER))
-print(paste0("RSCRIPTS_DIR : ", args$RSCRIPTS_DIR))
-print(paste0("GENESET_DIR : ", args$GENESET_DIR))
-print(paste0("SPECIES : ", args$SPECIES))
-print(paste0("RERUN_STAGE : ", args$RERUN_STAGE))
+print(paste0("DATADIR       : ", args$DATADIR))
+print(paste0("SAMPLES       : ", args$SAMPLES))
+print(paste0("OUT_FOLDER    : ", args$OUT_FOLDER))
+print(paste0("RSCRIPTS_DIR  : ", args$RSCRIPTS_DIR))
+print(paste0("GENESET_DIR   : ", args$GENESET_DIR))
+print(paste0("SPECIES       : ", args$SPECIES))
+print(paste0("RERUN_STAGE   : ", args$RERUN_STAGE))
 print(paste0("AB_ASSAY_NAME : ", args$AB_ASSAY_NAME))
+print(paste0("TCRDIR        : ", args$TCRDIR))
+print(paste0("BCRDIR        : ", args$BCRDIR))
 
 if (is.na(args$DATADIR) | is.na(args$SAMPLES)) {
   stop(paste0("Need DATADIR=<DATADIR> and SAMPLES=<SAMPLES.list> to continue. ",
@@ -76,12 +93,25 @@ if (!args$RERUN_STAGE %in% c(TRUE, FALSE)){
 args$RERUN_STAGE <- as.logical(args$RERUN_STAGE)
 
 datadir = args$DATADIR
+if (args$TCRDIR == "NA"){
+  tcrdir = NA
+} else {
+  tcrdir = args$TCRDIR
+}
+
+if (args$BCRDIR == "NA"){
+  bcrdir = NA
+} else {
+  bcrdir = args$BCRDIR
+}
+
 sample_list = readLines(args$SAMPLES)
 setwd(args$OUT_FOLDER)
 
 source(paste(args$RSCRIPTS_DIR, "identify_hto_clusters.R", sep="/"))
 source(paste(args$RSCRIPTS_DIR, "generate_profile_plot.R", sep="/"))
 source(paste(args$RSCRIPTS_DIR, "demux_HTOs_by_inflexions.R", sep="/"))
+source(paste(args$RSCRIPTS_DIR, "parse_10x_vdj_outs.R", sep="/"))
 source(paste(args$RSCRIPTS_DIR, "TriplePlot.R", sep="/"))
 
 
@@ -121,6 +151,31 @@ for (i in sample_list){
               rerun_stage <- FALSE
             }
             print(paste0("Generating `", i, "_raw.RData` ..."))
+            suppmsg <- assert_that(dir.exists(datadir), msg="DATADIR did not exist")
+            if (!is.na(tcrdir)){
+              suppmsg <- assert_that(dir.exists(tcrdir), msg="TCRDIR did not exist")
+              tcr <- parse_tcr_clonotype(paste0('5prime_TCR/CRC/', samples[[s]], '/'))
+            } else {
+              tcr = data.frame()
+            }
+
+            if (!is.na(bcrdir)){
+              suppmsg <- assert_that(dir.exists(bcrdir), msg="BCRDIR did not exist")
+              bcr <- parse_bcr_clonotype(paste0('5prime_BCR/CRC/', samples[[s]], '/'))
+            } else {
+              bcr = data.frame()
+            }
+
+            metadata <- merge(tcr, bcr, by=0, all.x=TRUE, all.y=TRUE)
+            if (dim(metadata)[1] != 0){
+              # There are actual rows to this matrix
+              rownames(metadata) <- metadata$Row.names
+              metadata$Row.names <- NULL
+            } else {
+              # This is the default for metadata in a seurat object
+              metadata = NULL
+            }
+
             # Create the fodler if it doesn't exist
             dir.create(i, showWarnings=FALSE)
 
@@ -128,14 +183,19 @@ for (i in sample_list){
                             sep="/"))
             if (typeof(data) == "list"){
               sobjs[[i]] <- CreateSeuratObject(counts = data$`Gene Expression`,
-                                               project = i, min.cells = 3,
-                                               min.features = 100)
+                                               project = i, 
+                                               min.cells = 3,
+                                               min.features = 100,
+                                               meta.data=metadata)
               ab_capture <- CreateAssayObject(counts = data$`Antibody Capture`)
               sobjs[[i]][[args$AB_ASSAY_NAME]] <- subset(ab_capture, cells=colnames(sobjs[[i]]))
               rm(list=c("ab_capture", "data"))
             } else {
-              sobjs[[i]] <- CreateSeuratObject(counts = data, project = i,
-                                               min.cells = 3, min.features = 100)
+              sobjs[[i]] <- CreateSeuratObject(counts = data, 
+                                               project = i,
+                                               min.cells = 3, 
+                                               min.features = 100,
+                                               meta.data=metadata)
             }
             # store mitochondrial percentage in object metadata
             sobjs[[i]] <- PercentageFeatureSet(sobjs[[i]],
@@ -381,7 +441,7 @@ for (i in sample_list){
           IDX_map <- read.table(paste0(i, "/IDX_map.tsv"), sep="\t",
                                 header=TRUE, row.names=1, stringsAsFactors=FALSE)
           # Hacky but it works ¯\_(ツ)_/¯
-          IDX_map <- sapply(colnames(IDX_map), function(x) { 
+          IDX_map <- sapply(colnames(IDX_map), function(x) {
                               y = IDX_map[,x, drop=T]
                               names(y) = rownames(IDX_map)
                               y
@@ -449,24 +509,24 @@ for (i in sample_list){
           sobjs[[i]]@meta.data$sample_name <- factor(demux_results$cell_ids,
                                                      levels=c(unname(sort(IDX_map$sample_name)), 'MULTIPLET', 'NEGATIVE'))
 
-          drf <- data.frame(sample_name=unlist(IDX_map$sample_name[sample_names]),  
+          drf <- data.frame(sample_name=unlist(IDX_map$sample_name[sample_names]),
                   threshold=demux_results[['inflexions']])
           write.table(drf, file=paste0(i, "/IDX_map_generated.tsv"),
                       quote=FALSE, row.names=TRUE, col.names=TRUE, sep="\t")
 
-          capture.output(demux_results[['secondary_inflexions']], 
+          capture.output(demux_results[['secondary_inflexions']],
                          file=paste0(i, "/IDX_additional_inflexions.txt"))
 
           write.table(demux_results[["summary"]], file=paste0(i, "/IDX_summary.tsv"),
                       quote=FALSE, row.names=TRUE, col.names=TRUE, sep="\t")
 
           Idents(sobjs[[i]]) <- sobjs[[i]]@meta.data$sample_name
-          png(paste0(i, "/", i, '_ridgeplot.png'), width=1500, 
+          png(paste0(i, "/", i, '_ridgeplot.png'), width=1500,
               height=ceiling(length(sample_names)/2)*750, units = 'px')
-          print(RidgePlot(sobjs[[i]], assay=args$AB_ASSAY_NAME, 
+          print(RidgePlot(sobjs[[i]], assay=args$AB_ASSAY_NAME,
                           features=sample_names, ncol = 2))
           dev.off()
-          sobjs[[i]] <- subset(sobjs[[i]], 
+          sobjs[[i]] <- subset(sobjs[[i]],
                                cells=colnames(sobjs[[i]])[!sobjs[[i]]$sample_name %in% c('NEGATIVE', 'MULTIPLET')])
           sobjs[[i]]$sample_name <- factor(sobjs[[i]]$sample_name,
                                            levels=unname(sort(IDX_map$sample_name)))
@@ -537,14 +597,14 @@ for (i in sample_list){
     pdf(paste0(i, "/", i, "_umap.pdf"))
     print(DimPlot(sobjs[[i]], label=TRUE))
     dev.off()
-    
+
     if (args$AB_ASSAY_NAME %in% names(sobjs[[i]]@assays)){
       # View the clusters UMAP
       pdf(paste0(i, "/", i, "_samples_umap.pdf"))
       print(DimPlot(sobjs[[i]], group.by="sample_name"))
       dev.off()
     }
-    
+
     pdf(paste0(i, "/", i, "_immune_triplot_umap.pdf"))
     tryCatch(expr=print(TriPlot(sobjs[[i]], features=species_args$CD45, reduction.use="umap", group.by="seurat_clusters")),
              error=function(e) {print(paste0("WARNING: Could not print CD45(",
