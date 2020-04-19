@@ -1,5 +1,5 @@
 parse_tcr_clonotype <- function(tcr_outs_folder){
-    tcr <- read.csv(paste(tcr_outs_folder,"filtered_contig_annotations.csv", sep=""))
+    tcr <- read.csv(file.path(tcr_outs_folder, "filtered_contig_annotations.csv"))
 
     # Remove the -1 at the end of each barcode.
     # Subsets so only the first line of each barcode is kept,
@@ -13,7 +13,7 @@ parse_tcr_clonotype <- function(tcr_outs_folder){
     names(tcr)[names(tcr) == "raw_clonotype_id"] <- "clonotype_id"
 
     # Clonotype-centric info.
-    clono <- read.csv(paste(tcr_outs_folder,"clonotypes.csv", sep=""))
+    clono <- read.csv(file.path(tcr_outs_folder, "clonotypes.csv"))
 
     # Slap the AA sequences onto our original table by clonotype_id.
     tcr <- merge(tcr, clono[, c("clonotype_id", "cdr3s_aa")])
@@ -29,7 +29,7 @@ parse_tcr_clonotype <- function(tcr_outs_folder){
 
 # Parse the results of a 10x VDJ IG sequencing
 parse_bcr_clonotype <- function(bcr_outs_folder){
-    bcr <- read.csv(paste(bcr_outs_folder,"filtered_contig_annotations.csv", sep=""))
+    bcr <- read.csv(file.path(bcr_outs_folder, "filtered_contig_annotations.csv"))
 
     # Remove the -1 at the end of each barcode.
     # Subsets so only the first line of each barcode is kept,
@@ -43,7 +43,7 @@ parse_bcr_clonotype <- function(bcr_outs_folder){
     names(bcr)[names(bcr) == "raw_clonotype_id"] <- "clonotype_id"
 
     # Clonotype-centric info.
-    clono <- read.csv(paste(bcr_outs_folder,"clonotypes.csv", sep=""))
+    clono <- read.csv(file.path(bcr_outs_folder, "clonotypes.csv"))
 
     # Slap the AA sequences onto our original table by clonotype_id.
     bcr <- merge(bcr, clono[, c("clonotype_id", "cdr3s_aa")])

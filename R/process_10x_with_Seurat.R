@@ -22,7 +22,7 @@ args = list(
   RERUN_STAGE=FALSE,  # Should we rerun the last run stage?
   AB_ASSAY_NAME="IDX",  # What should the antibody capture assay (if any) be called?
   TCRDIR=NA,  # Directory with folders containing the outs from `cellranger vdj --chain TR`
-  BCRDIR=NA,  # Directory with folders containing the outs from `cellranger vdj --chain IG`
+  BCRDIR=NA  # Directory with folders containing the outs from `cellranger vdj --chain IG`
   )
 
 argsClasses = list(
@@ -115,7 +115,7 @@ source(paste(args$RSCRIPTS_DIR, "parse_10x_vdj_outs.R", sep="/"))
 source(paste(args$RSCRIPTS_DIR, "TriplePlot.R", sep="/"))
 
 
-remove_rplots <- FALSE
+remove_rplots <- TRUE
 if (file.exists("Rplots.pdf")){
   # Don't delete an existing file. Just delete if we create it.
   remove_rplots <- FALSE
@@ -152,18 +152,29 @@ for (i in sample_list){
             }
             print(paste0("Generating `", i, "_raw.RData` ..."))
             suppmsg <- assert_that(dir.exists(datadir), msg="DATADIR did not exist")
+            
+            tcr = data.frame()
             if (!is.na(tcrdir)){
-              suppmsg <- assert_that(dir.exists(tcrdir), msg="TCRDIR did not exist")
-              tcr <- parse_tcr_clonotype(paste0('5prime_TCR/CRC/', samples[[s]], '/'))
-            } else {
-              tcr = data.frame()
+              if(dir.exists(file.path(tcrdir, i))){
+                  print(paste0("Reading TCR information from ", file.path(tcrdir, i)))
+                  tcr <- parse_tcr_clonotype(file.path(tcrdir, i))
+                } else {
+                  print(paste0("TCRDIR was provided but could not find ",
+                               i,
+                               " in the folder. Assuming sample does not have TCR information."))
+                }
             }
 
+            bcr = data.frame()
             if (!is.na(bcrdir)){
-              suppmsg <- assert_that(dir.exists(bcrdir), msg="BCRDIR did not exist")
-              bcr <- parse_bcr_clonotype(paste0('5prime_BCR/CRC/', samples[[s]], '/'))
-            } else {
-              bcr = data.frame()
+              if(dir.exists(file.path(bcrdir, i))){
+                  print(paste0("Reading BCR information from ", file.path(bcrdir, i)))
+                  bcr <- parse_bcr_clonotype(file.path(bcrdir, i))
+                } else {
+                  print(paste0("BCRDIR was provided but could not find ",
+                               i,
+                               " in the folder. Assuming sample does not have BCR information."))
+                }
             }
 
             metadata <- merge(tcr, bcr, by=0, all.x=TRUE, all.y=TRUE)
@@ -266,6 +277,7 @@ for (i in sample_list){
                 percent.mt=quantile(sobjs[[i]]@meta.data[["percent.mt"]], seq(0, 1.01, 0.1)),
                 percent.ribo=quantile(sobjs[[i]]@meta.data[["percent.ribo"]], seq(0, 1.01, 0.1)),
                 nFeature_RNA=quantile(sobjs[[i]]@meta.data[["nFeature_RNA"]], seq(0, 1.01, 0.1)),
+                nCount_RNA=quantile(sobjs[[i]]@meta.data[["nCount_RNA"]], seq(0, 1.01, 0.1)),
                 row.names=seq(0, 1.01, 0.1)
                 )
             write.table(format(df, digits=2), file=paste0(i, "/", i, "_dualscatter_pre.tsv"), row.names=T, col.names=T, quote=F, sep="\t")
@@ -398,6 +410,7 @@ for (i in sample_list){
               percent.mt=quantile(sobjs[[i]]@meta.data[["percent.mt"]], seq(0, 1.01, 0.1)),
               percent.ribo=quantile(sobjs[[i]]@meta.data[["percent.ribo"]], seq(0, 1.01, 0.1)),
               nFeature_RNA=quantile(sobjs[[i]]@meta.data[["nFeature_RNA"]], seq(0, 1.01, 0.1)),
+              nCount_RNA=quantile(sobjs[[i]]@meta.data[["nCount_RNA"]], seq(0, 1.01, 0.1)),
               row.names=seq(0, 1.01, 0.1)
               )
           write.table(format(df, digits=2), file=paste0(i, "/", i, "_dualscatter_post.tsv"), row.names=T, col.names=T, quote=F, sep="\t")
