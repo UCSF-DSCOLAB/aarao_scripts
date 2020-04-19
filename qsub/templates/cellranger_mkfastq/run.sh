@@ -2,22 +2,32 @@
 set -e
 set -o nounset
 
+source /krummellab/data1/arrao/scripts/bash/essentials.sh
+uuid=`randomstr 10`
+
 module load CBC cellranger/3.0.2
 
-scratch_dir=/scratch/arrao/cellranger_mkfastq_${UUID}
-mkdir -p ${scratch_dir}/working && cd ${scratch_dir}/working
-trap "{ rm -rf ${scratch_dir} ; }" EXIT
+mkdir -p /scratch/arrao/cellranger_mkfastq_${SAMPLE}_${uuid}/working  /scratch/arrao/cellranger_mkfastq_${SAMPLE}_${uuid}/working && cd /scratch/arrao/cellranger_mkfastq_${SAMPLE}_${uuid}/working 
+trap "{ rm -rf /scratch/arrao/cellranger_mkfastq_${SAMPLE}_${uuid} ; }" EXIT
 
-run_mem=`echo "${MEMORY} * 0.95 / 1" | bc`
+fastq_dir=$(dirname $(pwd))/fastqs
+
+lanes_argstring=" "
+if [ ${LANES} != "ALL" ]
+then
+    lanes_argstring="--lanes=${LANES} "
+fi
 
 cellranger mkfastq --csv=${SAMPLESHEET} \
                    --run=${BCLDIR} \
-                   --lanes=1,2 \
-                   --output-dir=${scratch_dir}/fastqs \
+                   --barcode-mismatches=0 \
+                   ${lanes_argstring} \
+                   --output-dir=${fastq_dir} \
                    --localcores=${PBS_NUM_PPN} \
-                   --localmem=${run_mem}
+                   --localmem=${MEMORY}
 
-find ${scratch_dir}/fastqs/ -name "*.gz" -exec dirname {} \; | sort -u | while read subfolder
+
+find ${fastq_dir}/ -name "*.gz" -exec dirname {} \; | sort -u | while read subfolder
 do
   cd ${subfolder}
   echo "Validating entries within ${subfolder}"
@@ -29,6 +39,13 @@ do
 done
 
 echo "Filesizes for All generated fastqs:"
-find ${scratch_dir}/fastqs -name "*.gz" -exec du -h {} \; | sort -k2d
+find ${fastq_dir}/fastqs -name "*.gz" -exec du -h {} \; | sort -k2d
 
-mv ${scratch_dir}/fastqs ${OUTDIR}/
+
+if [ -f ${OUTDIR} ]
+then
+    mv ${fastq_dir} ${OUTDIR}/${SAMPLE}_mkfastq_${uuid}
+else
+    mkdir -p $(dirname ${OUTDIR})
+    mv ${fastq_dir} ${OUTDIR}
+fi
