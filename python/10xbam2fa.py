@@ -24,12 +24,12 @@ def generate_fasta(bamfile, outfile, noCB_outfile, update_verbosity=10000):
             rdict = dict(read.tags)
             if 'fr' in rdict:
                 # This is a feature barcoding read and thus is useless
-                print('Found a Feature barcode')
+                #print('Found a Feature barcode')
                 continue
             elif 'CB' not in rdict:
                 out_read = ''.join([(b if ord(q)>=25 else 'N')
                                     for b, q in zip(read.seq, read.qual)])
-                noCBfa_handle.write('@no_cell_barcode_read{}\n{}\n'.format(noCB_readnum, out_read))
+                noCBfa_handle.write('>no_cell_barcode_read{}\n{}\n'.format(noCB_readnum, out_read))
                 noCB_readnum += 1
             else:
                 if 'UB' not in rdict:
@@ -39,7 +39,7 @@ def generate_fasta(bamfile, outfile, noCB_outfile, update_verbosity=10000):
                 if rdict['CB'] in udict:
                     if rdict['UB'] in udict[rdict['CB']]:
                         # This is a umi duplicate
-                        print('Found a UMI duplicate')
+                        #print('Found a UMI duplicate')
                         umi_dup += 1
                         continue
                     else:
@@ -52,7 +52,7 @@ def generate_fasta(bamfile, outfile, noCB_outfile, update_verbosity=10000):
 
                 out_read = ''.join([(b if ord(q)>=25 else 'N')
                                     for b, q in zip(read.seq, read.qual)])
-                fa_handle.write('@{}:{}\n{}\n'.format(rdict['CB'],
+                fa_handle.write('>{}:{}\n{}\n'.format(rdict['CB'],
                                                     rdict['UB'],
                                                     out_read))
     except:
