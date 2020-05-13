@@ -32,8 +32,12 @@ get_genes3 <- function(genes, sobj) {
   ###
   gene_idx <- sapply(genes, function(x) { match(x, rownames(sobj)) })
   if (sum(is.na(gene_idx)) > 0) {
-    print("The following genes are not in the gene list.")
+    print("The following genes are not in the gene list. They will be dropped")
     print(names(gene_idx[is.na(gene_idx)]))
+  }
+  genes <- genes[genes %in% rownames(sobj)]
+  if (length(genes) == 0){
+    print("No genes available to subset")
     return(1)
   }
   genes <- as.data.frame(as.matrix(sobj@assays[[sobj@active.assay]]@data[genes,]))

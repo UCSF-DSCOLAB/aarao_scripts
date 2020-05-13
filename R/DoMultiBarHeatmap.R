@@ -178,14 +178,15 @@ DoMultiBarHeatmap <- function (object,
         
         plot <- suppressMessages(plot + 
                                    annotation_raster(raster = t(x = cols[[colname]][group.use2[[colname]]]),  xmin = -Inf, xmax = Inf, ymin = y.pos, ymax = y.max) + 
-                                   annotation_custom(grob = grid::textGrob(label = colid, hjust = 0, gp = gpar(cex = 0.75)), ymin = mean(c(y.pos, y.max)), ymax = mean(c(y.pos, y.max)), xmin = Inf, xmax = Inf) +
+                                   annotation_custom(grob = grid::textGrob(label = colid, hjust = 0, gp = grid::gpar(cex = 0.75)), ymin = mean(c(y.pos, y.max)), ymax = mean(c(y.pos, y.max)), xmin = Inf, xmax = Inf) +
                                    coord_cartesian(ylim = c(0, y.max), clip = "off")) 
         
         if ((colname == i) && label) {
           x.max <- max(pbuild$layout$panel_params[[1]]$x.range)
-          x.divs <- pbuild$layout$panel_params[[1]]$x.major
+          x.divs <- pbuild$layout$panel_params[[1]]$x.major %||% pbuild$layout$panel_params[[1]]$x$break_positions()
           group.use$x <- x.divs
-          label.x.pos <- tapply(X = group.use$x, INDEX = group.use[[colname]],
+          label.x.pos <- tapply(X = group.use$x, 
+                                INDEX = group.use[[colname]],
                                 FUN = median) * x.max
           label.x.pos <- data.frame(group = names(x = label.x.pos), 
                                     label.x.pos)

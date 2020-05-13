@@ -1,5 +1,7 @@
-library(dittoSeq)
-library(gridExtra)
+suppressPackageStartupMessages({
+  if (!'package:dittoSeq' %in% search()) library(dittoSeq)
+  if (!'package:gridExtra' %in% search()) library(gridExtra)
+})
 
 dittoTriPlot <- function(sobj, features, reduction.use="umap", group.by="seurat_clusters") {
   plots <- list()

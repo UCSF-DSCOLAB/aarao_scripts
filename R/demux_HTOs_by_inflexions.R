@@ -1,11 +1,13 @@
-library(assertthat) # Assertions
-library(Seurat)  # Seurat
-library(ggplot2)  # Pretty plots
-library(cowplot)  # Grid plot
-library(grid)  #  for plotting multiple plots in one frame
-library(gridExtra)  #  for plotting multiple plots in one frame
-library(scales)  # to access break formatting functions
-library(RColorBrewer)  # For colors
+suppressPackageStartupMessages({
+  if (!'package:assertthat' %in% search()) library(assertthat) # Assertions
+  if (!'package:Seurat' %in% search()) library(Seurat)  # Seurat
+  if (!'package:ggplot2' %in% search()) library(ggplot2)  # Pretty plots
+  if (!'package:cowplot' %in% search()) library(cowplot)  # Grid plot
+  if (!'package:grid' %in% search()) library(grid)  #  for plotting multiple plots in one frame
+  if (!'package:gridExtra' %in% search()) library(gridExtra)  #  for plotting multiple plots in one frame
+  if (!'package:scales' %in% search()) library(scales)  # to access break formatting functions
+  if (!'package:RColorBrewer' %in% search()) library(RColorBrewer)  # For colors
+})
 
 demux_by_inflexions <- function(sobj, sample_names, inflexions=NULL, visual_outlier_frac=0.001, 
                                 assay_name="Hashes", slot='scale.data', dens_windows=1000, 
