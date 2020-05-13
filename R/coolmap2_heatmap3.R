@@ -51,7 +51,11 @@ heatmap.3 <- function(x,
                       lwid = NULL,
                       ColSideColorsSize = 1,
                       RowSideColorsSize = 1,
-                      KeyValueName="Value",...){
+                      KeyValueName="Value",
+                      cbar_extreme,  # A value to set the min and max of the colorbar if symmetric
+                      ColSideColorSeparator=FALSE,  # Should Col side annotations be separated by a white line?
+                      RowSideColorSeparator=FALSE,  # Should Row side annotations be separated by a white line?
+                      ...){
 
     invalid <- function (x) {
       if (missing(x) || is.null(x) || length(x) == 0)
@@ -215,8 +219,13 @@ heatmap.3 <- function(x,
             breaks <- seq(min(x, na.rm = na.rm), max(x, na.rm = na.rm),
                 length = breaks)
         else {
-            extreme <- max(abs(x), na.rm = TRUE)
-            breaks <- seq(-extreme, extreme, length = breaks)
+            if (missing(cbar_extreme) || is.null(cbar_extreme)){
+              extreme <- max(abs(x), na.rm = TRUE)
+              breaks <- seq(-extreme, extreme, length = breaks)
+            } else {
+              extreme <- abs(cbar_extreme)
+              breaks <- seq(-extreme, extreme, length = breaks)
+            }
         }
     }
     nbr <- length(breaks)
@@ -272,6 +281,14 @@ heatmap.3 <- function(x,
         } else {
             par(mar = c(margins[1], 0, 0, 0.5))
             rsc = t(RowSideColors[,rowInd, drop=F])
+            if (RowSideColorSeparator){
+              whiteout <- matrix(rep("#FFFFFF", dim(rsc)[1]*dim(rsc)[2]),nrow = dim(rsc)[2], ncol=dim(rsc)[1])
+              # Interleave uses rows so transpose this for a sec
+              rsc <- t(rsc)
+              rsc <- gdata::interleave(rsc, rsc, rsc, rsc, whiteout)
+              #Transpose back
+              rsc <- t(rsc)
+            }
             rsc.colors = matrix()
             rsc.names = names(table(rsc))
             rsc.i = 1
@@ -283,7 +300,21 @@ heatmap.3 <- function(x,
             rsc = matrix(as.numeric(rsc), nrow = dim(rsc)[1])
             image(t(rsc), col = as.vector(rsc.colors), axes = FALSE)
             if (length(rownames(RowSideColors)) > 0) {
-                axis(1, 0:(dim(rsc)[2] - 1)/max(1,(dim(rsc)[2] - 1)), rownames(RowSideColors), las = 2, tick = FALSE)
+                if (ColSideColorSeparator){
+                  axis(1, 
+                       seq(2, 
+                           dim(rsc)[2], 
+                           6)/max(1, (dim(rsc)[2])-1),
+                       rownames(RowSideColors), 
+                       las = 2, 
+                       tick = FALSE)
+                } else {
+                  axis(1, 
+                       0:(dim(rsc)[2] - 1)/max(1,(dim(rsc)[2] - 1)), 
+                       rownames(RowSideColors), 
+                       las = 2, 
+                       tick = FALSE)
+                }
             }
         }
     }
@@ -296,18 +327,45 @@ heatmap.3 <- function(x,
         } else {
             par(mar = c(0.5, 0, 0, margins[2]))
             csc = ColSideColors[colInd, , drop=F]
+            if (ColSideColorSeparator){
+              whiteout <- matrix(rep("#FFFFFF", dim(csc)[1]*dim(csc)[2]),nrow = dim(csc)[2], ncol=dim(csc)[1])
+              # Interleave uses rows so transpose this for a sec
+              csc <- t(csc)
+              csc <- gdata::interleave(csc, 
+                                       csc, 
+                                       csc, 
+                                       csc, 
+                                       csc,
+                                       whiteout)
+              #Transpose back
+              csc <- t(csc)
+            }
             csc.colors = matrix()
             csc.names = names(table(csc))
             csc.i = 1
             for (csc.name in csc.names) {
-                csc.colors[csc.i] = csc.name
-                csc[csc == csc.name] = csc.i
-                csc.i = csc.i + 1
+              csc.colors[csc.i] = csc.name
+              csc[csc == csc.name] = csc.i
+              csc.i = csc.i + 1
             }
             csc = matrix(as.numeric(csc), nrow = dim(csc)[1])
             image(csc, col = as.vector(csc.colors), axes = FALSE)
             if (length(colnames(ColSideColors)) > 0) {
-                axis(2, 0:(dim(csc)[2] - 1)/max(1,(dim(csc)[2] - 1)), colnames(ColSideColors), las = 2, tick = FALSE)
+                if (ColSideColorSeparator){
+                  axis(2, 
+                       seq(3, 
+                           dim(csc)[2], 
+                           6)/max(1, (dim(csc)[2])-1),
+                       colnames(ColSideColors), 
+                       las = 2, 
+                       tick = FALSE)
+                } else {
+                  axis(2, 
+                       0:(dim(csc)[2] - 1)/max(1,(dim(csc)[2] - 1)), 
+                       colnames(ColSideColors), 
+                       las = 2, 
+                       tick = FALSE)
+                }
             }
         }
     }
@@ -534,6 +592,7 @@ coolmap.2 <- function (x, cluster.by = "de pattern", col = NULL, linkage.row = "
             "green", "black", "red"), yellowblue = gplots::colorpanel(256, 
             "blue2", "white", "yellow2"), whitered = gplots::colorpanel(256, 
             low = "white", high = "red2"))
+    
     heatmap.3(x, Rowv = hr, Colv = hc, scale = "none", 
               density.info = "none", trace = "none", col = col, symbreaks = sym, 
               symkey = sym, dendrogram = show.dendrogram, cexRow=1, ColSideColorsSize=7, 

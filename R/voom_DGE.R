@@ -12,7 +12,6 @@ suppressPackageStartupMessages({
   library(methods)
   library(reshape2)
   library(RColorBrewer)
-  library(STRINGdb)
 })
 
 # poor vs rich
@@ -20,35 +19,48 @@ suppressPackageStartupMessages({
 # logFc > 0 -> poor/rich > 0 -> downregulated in poor
 
 
+# Function definitions
+
 args = list(
   COUNTS_TSV=NA,  # Directory with folders containing fastqs
-  CLASSES_TSV=NA,  # Samples to pull from the directory
+  CLASSES_TSV=NA,  # Metadata for the samples
+  GENE_TO_SYMBOL_TSV=NA,
   OUT_FOLDER=".",  # Where to write results
-  BATCH_CORRECT=FALSE,
+  MODEL_COVARIATE=c(),
   ANNOT_COLS_TSV=NULL,
   STRING_FOLDER=paste(Sys.getenv("KLAB"), "/ipi/data/databases/string", sep=""),
   RSCRIPTS_DIR=paste(Sys.getenv("SCRIPTS"), "R", sep="/"),  # Where to find aux scripts
   RUN_STRING_DE=TRUE,
   RUN_STRING_PCA=TRUE,
-  MOST_VARIABLE_CUTOFF=1000
+  RUN_DAVID_DE=TRUE,
+  RUN_DAVID_PCA=TRUE,
+  DAVID_AUTH_EMAIL=NA,
+  MOST_VARIABLE_CUTOFF=c(200, 500, 1000)
   )
 
 argsClasses = list(
   COUNTS_TSV=as.character,
   CLASSES_TSV=as.character,
+  GENE_TO_SYMBOL_TSV=as.character,
   OUT_FOLDER=as.character,
-  BATCH_CORRECT=as.logical,
+  MODEL_COVARIATE=as.character,
   ANNOT_COLS_TSV=as.character,
   STRING_FOLDER=as.character,
   RSCRIPTS_DIR=as.character,
   RUN_STRING_DE=as.logical,
   RUN_STRING_PCA=as.logical,
+  RUN_DAVID_DE=as.logical,
+  RUN_DAVID_PCA=as.logical,
+  DAVID_AUTH_EMAIL=as.character,
   MOST_VARIABLE_CUTOFF=as.numeric
 )
 
-UserArgs = commandArgs(trailingOnly=TRUE)
+user_args <- commandArgs(trailingOnly=TRUE)
+#user_args = strsplit("COUNTS_TSV=/Users/arjunarkalrao/projects/gyn_indication/poor_rich_dge/05_04_2020/live/live_valid_samples_counts.tsv CLASSES_TSV=/Users/arjunarkalrao/projects/gyn_indication/poor_rich_dge/05_04_2020/live/live_valid_samples.tsv OUT_FOLDER=/Users/arjunarkalrao/projects/gyn_indication/poor_rich_dge/05_04_2020/live/ ANNOT_COLS_TSV=/Users/arjunarkalrao/projects/gyn_indication/poor_rich_dge/05_04_2020/important_fields.tsv STRING_FOLDER=/Users/arjunarkalrao/important_data/databases/string RSCRIPTS_DIR=/Users/arjunarkalrao/scripts_bk/R RUN_STRING_DE=FALSE RUN_STRING_PCA=FALSE MOST_VARIABLE_CUTOFF=200 MOST_VARIABLE_CUTOFF=500 MOST_VARIABLE_CUTOFF=1000 DAVID_AUTH_EMAIL=arjunarkal.rao@ucsf.edu", " ")[[1]]
 
-for (i in UserArgs){
+
+parsed_user_args <- c()
+for (i in user_args){
   key_val = strsplit(i, split="=", fixed=TRUE)[[1]]
   assert_that(length(key_val) == 2, msg=paste0("Invalid option `", i, "`. ",
                                                "Args must be of the form ",
@@ -57,22 +69,30 @@ for (i in UserArgs){
     print(paste0("WARNING: Invalid key provided : ", i, ""))
     next
   } else {
-    args[[key_val[1]]] = argsClasses[[key_val[1]]](key_val[2])
+    if (key_val[1] %in% parsed_user_args){
+      args[[key_val[1]]] = c(args[[key_val[1]]], argsClasses[[key_val[1]]](key_val[2]))
+    } else {
+      args[[key_val[1]]] = argsClasses[[key_val[1]]](key_val[2])
+      parsed_user_args <- c(parsed_user_args, key_val[1])
+    }
   }
 }
 
-print("Running with arguments:")
-print(paste0("COUNTS_TSV : ", args$COUNTS_TSV, " (", mode(args$COUNTS_TSV), ")"))
-print(paste0("CLASSES_TSV : ", args$CLASSES_TSV, " (", mode(args$CLASSES_TSV), ")"))
-print(paste0("OUT_FOLDER  : ", args$OUT_FOLDER, " (", mode(args$OUT_FOLDER), ")"))
-print(paste0("BATCH_CORRECT : ", args$BATCH_CORRECT, " (", mode(args$BATCH_CORRECT), ")"))
-print(paste0("ANNOT_COLS_TSV : ", args$ANNOT_COLS_TSV, " (", mode(args$ANNOT_COLS_TSV), ")"))
-print(paste0("STRING_FOLDER : ", args$STRING_FOLDER, " (", mode(args$STRING_FOLDER), ")"))
-print(paste0("RSCRIPTS_DIR : ", args$RSCRIPTS_DIR, " (", mode(args$RSCRIPTS_DIR), ")"))
-print(paste0("RUN_STRING_DE : ", args$RUN_STRING_DE, " (", mode(args$RUN_STRING_DE), ")"))
-print(paste0("RUN_STRING_PCA : ", args$RUN_STRING_PCA, " (", mode(args$RUN_STRING_PCA), ")"))
-print(paste0("MOST_VARIABLE_CUTOFF : ", args$MOST_VARIABLE_CUTOFF, " (", mode(args$MOST_VARIABLE_CUTOFF), ")"))
-
+cat("Running with arguments:\n")
+cat(paste0("COUNTS_TSV : ", args$COUNTS_TSV, " (", mode(args$COUNTS_TSV), ")\n"))
+cat(paste0("CLASSES_TSV : ", args$CLASSES_TSV, " (", mode(args$CLASSES_TSV), ")\n"))
+cat(paste0("GENE_TO_SYMBOL_TSV : ", args$GENE_TO_SYMBOL_TSV, " (", mode(args$GENE_TO_SYMBOL_TSV), ")\n"))
+cat(paste0("OUT_FOLDER  : ", args$OUT_FOLDER, " (", mode(args$OUT_FOLDER), ")\n"))
+cat(paste("MODEL_COVARIATE : ", args$MODEL_COVARIATE, " (", mode(args$MODEL_COVARIATE), ")\n", sep='', collapse=''))
+cat(paste0("ANNOT_COLS_TSV : ", args$ANNOT_COLS_TSV, " (", mode(args$ANNOT_COLS_TSV), ")\n"))
+cat(paste0("STRING_FOLDER : ", args$STRING_FOLDER, " (", mode(args$STRING_FOLDER), ")\n"))
+cat(paste0("RSCRIPTS_DIR : ", args$RSCRIPTS_DIR, " (", mode(args$RSCRIPTS_DIR), ")\n"))
+cat(paste0("RUN_STRING_DE : ", args$RUN_STRING_DE, " (", mode(args$RUN_STRING_DE), ")\n"))
+cat(paste0("RUN_STRING_PCA : ", args$RUN_STRING_PCA, " (", mode(args$RUN_STRING_PCA), ")\n"))
+cat(paste0("RUN_DAVID_DE : ", args$RUN_DAVID_DE, " (", mode(args$RUN_DAVID_DE), ")\n"))
+cat(paste0("RUN_DAVID_PCA : ", args$RUN_DAVID_PCA, " (", mode(args$RUN_DAVID_PCA), ")\n"))
+cat(paste0("DAVID_AUTH_EMAIL : ", args$DAVID_AUTH_EMAIL, " (", mode(args$DAVID_AUTH_EMAIL), ")\n"))
+cat(paste("MOST_VARIABLE_CUTOFF : ", args$MOST_VARIABLE_CUTOFF, " (", mode(args$MOST_VARIABLE_CUTOFF), ")\n", sep='', collapse=''))
 
 if (is.na(args$COUNTS_TSV) | is.na(args$CLASSES_TSV)) {
   stop(paste0("Need COUNTS_TSV=<COUNTS.tsv> and CLASSES_TSV=<CLASSES.tsv> to continue. ",
@@ -82,51 +102,101 @@ if (is.na(args$COUNTS_TSV) | is.na(args$CLASSES_TSV)) {
 }
 
 source(paste0(args$RSCRIPTS_DIR, '/coolmap2_heatmap3.R'))
+source(paste0(args$RSCRIPTS_DIR, '/biomart_operations.R'))
+source(paste0(args$RSCRIPTS_DIR, '/string_operations.R'))
+source(paste0(args$RSCRIPTS_DIR, '/david_operations.R'))
 
-suppmsg <- assert_that(is.logical(args$BATCH_CORRECT), msg="BATCH_CORRECT must be one of TRUE or FALSE")
-suppmsg <- assert_that(is.logical(args$RUN_STRING_DE), msg="RUN_STRING_DE must be one of TRUE or FALSE")
-suppmsg <- assert_that(is.logical(args$RUN_STRING_PCA), msg="RUN_STRING_PCA must be one of TRUE or FALSE")
+cat ("Reading counts.....")
+counts <- read.table(args$COUNTS_TSV, 
+                     sep='\t', 
+                     header=1, 
+                     row.names=1)
+cat ("Done\n")
 
-print ("Reading counts.....")
-counts <- read.table(args$COUNTS_TSV, sep='\t', header=1, row.names=1)
-print ("Done")
+cat ("Reading classes.....")
+groups <- read.table(args$CLASSES_TSV, 
+                     sep='\t', 
+                     header=1, 
+                     row.names=1, 
+                     stringsAsFactors = T,
+                     na.strings = 'unknown')
+cat ("Done\n")
 
-print ("Reading classes.....")
-groups <- read.table(args$CLASSES_TSV, sep='\t', header=1, row.names=1, stringsAsFactors = T)
-print ("Done")
+if (is.null(args$GENE_TO_SYMBOL_TSV)){
+  cat ('Getting Gene Symbols for all genes')
+  ensembl_to_symbol <- data.frame(ensembl=rownames(counts), stringsAsFactors = F)
+  ensembl_to_symbol <- ensg_to_hugo(human_genes, fill = F)
+  assign('ensembl_to_symbol', ensembl_to_symbol)
+} else {
+  cat (paste0('Reading Gene Symbols  for all genes from ', args$GENE_TO_SYMBOL_TSV, '\n'))
+  ensembl_to_symbol <- read.table(args$GENE_TO_SYMBOL_TSV,  
+                                  sep='\t',
+                                  header=1,
+                                  stringsAsFactors = FALSE)
+  assign('ensembl_to_symbol', ensembl_to_symbol)
+}
+
+add_gene_symbol <- function(df, df_ensembl_col='ensembl') {
+  if (is.null(ensembl_to_symbol)){
+    stop("Can't run this without setting ensembl_to_symbol")
+  }
+  
+  temp_rownames <- rownames(df)
+  df$TEMP_ROW_NAMES <- rownames(df)
+  df <- merge(df, 
+              ensembl_to_symbol, 
+              by.x=df_ensembl_col, 
+              by.y='ensembl',
+              all.x=T,
+              all.y=FALSE)
+  rownames(df) <- df$TEMP_ROW_NAMES
+  df$TEMP_ROW_NAMES <- NULL
+  df <- df[temp_rownames, ]
+  df$hugo[is.na(df$hugo)] <- df$ensembl[is.na(df$hugo)]
+  df$hugo[df$hugo==''] <- df$ensembl[df$hugo=='']
+  df
+}
 
 if (!is.null(args$ANNOT_COLS_TSV)){
-  print ("Reading Additional annotation columns.....")
-  annot_cols <- read.table(args$ANNOT_COLS_TSV, sep='\t', header=1, row.names=1, stringsAsFactors = FALSE)
-  print ("Additional annotation columns read")
+  cat ("Reading Annotation columns.....")
+  annot_cols <- read.table(args$ANNOT_COLS_TSV, sep='\t', 
+                           header=1, row.names=1, 
+                           stringsAsFactors = FALSE, 
+                           quote="")
+  cat ("Done\n")
 } else {
   annot_cols <- data.frame()
 }
 
-#if (length(groups) != 1 || colnames(groups) != 'group') {
-#    stop("<GROUPS.TSV> must have only one column named group", call.=FALSE)
-#}
 
+if (is.numeric(groups$plate)){
+  cat(paste0('`plate` in <GROUPS.TSV> cannot be numerical. Renaming to ',
+             'prefix with `plate` (i.e. `1` becomes `plate1`). This ',
+             'is the expected format.\n'))
+  groups$plate <- paste0('plate', groups$plate)
+}
 
-suppressWarnings({
-    if (any(sapply(levels(groups$plate), function(x){!is.na(as.numeric(x))}))){
-        stop("Plates in <GROUPS.TSV> cannot be numbers. Consider renaming `1` (say) to `group_1`", call.=FALSE)
-    }
-})
-
-suppressWarnings({
-    if (any(sapply(levels(groups$group), function(x){!is.na(as.numeric(x))}))){
-        stop("Groups in <GROUPS.TSV> cannot be numbers. Consider renaming `1` (say) to `plate1`", call.=FALSE)
-    }
-})
-
+if (!'group' %in% colnames(groups)) {
+    stop("<GROUPS.TSV> must have a column named group", call.=FALSE)
+} else if (is.numeric(groups$group)){
+  cat(paste0('`group` in <GROUPS.TSV> cannot be numerical. Renaming to ',
+             'prefix with `g` (i.e. `1` becomes `g1`).\n'))
+  groups$group <- as.factor(paste0('g', groups$group))
+}
 
 if (args$RUN_STRING_DE|args$RUN_STRING_PCA){
-  print ("Populating String DB.....")
-  string_db <- STRINGdb$new(version="10", species=9606, score_threshold=0, input_directory=args$STRING_FOLDER)
-  temp <- string_db$get_annotations()
-  print ("Done")
+  cat ("Populating String DB.....")
+  string_db <- setup_string(args$STRING_FOLDER)
+  cat ("Done\n")
 }
+
+if (args$RUN_DAVID_DE|args$RUN_DAVID_PCA){
+  suppmsg <- assert_that(!is.na(args$DAVID_AUTH_EMAIL), msg = 'Need DAVID email auth to run DAVID')
+  cat ("Authenticating with DAVID.....")
+  david_db <- setup_david(email=args$DAVID_AUTH_EMAIL)
+  cat ("Done\n")
+}
+
 
 if (length(rownames(groups)) != length(colnames(counts)) ||
         !all(rownames(groups) %in% colnames(counts)) ||
@@ -143,95 +213,80 @@ counts <- counts[, rownames(groups)]
 
 
 if (!all(rownames(annot_cols) %in% colnames(groups))) {
-  warning("The following fields in <ANNOT_COLS.TSV> are not in <GROUPS.TSV>. Discarding missing columns", call.=FALSE)
+  nc <- rownames(annot_cols)[!rownames(annot_cols) %in% colnames(groups)]
+  warning(paste0("The following fields in <ANNOT_COLS.TSV> are not in ",
+                 "<GROUPS.TSV>: ", 
+                 paste(nc, collapse=", "),
+                 " ....Discarding missing columns"),
+                 call.=FALSE)
   cc <- rownames(annot_cols)[rownames(annot_cols) %in% colnames(groups)]
   annot_cols <- annot_cols[cc, , drop=F]
 }
 
-
-y = DGEList(counts=counts, group=groups$group)
-cpm <- cpm(y)
-lcpm <- cpm(y, log=TRUE)
-print ("made DGElist...")
-y = y[ rowSums(y$counts) > 60, keep.lib.size=FALSE ]
-y <- calcNormFactors(y, method="TMM")
-cpm2 <- cpm(y)
-lcpm2 <- cpm(y, log=TRUE)
-
-print ("Normalization done")
-
-# Add batch annotations into the groups dataframe
+# Add IPI batch annotations into the groups dataframe
 fixed_levels <- list()
 fixed_levels[['sequencer']] <- c('hiseq', 'novaseq')
 groups$sequencer <- factor(x=sapply(groups$plate, function(x){if (as.numeric(gsub('plate', '', x)) > 25) 'novaseq' else 'hiseq'}), levels=fixed_levels[['sequencer']])
 fixed_levels[['washes']] <- c('extraWash', 'noExtraWash')
 groups$washes <- factor(x=sapply(groups$plate, function(x){if (as.numeric(gsub('plate', '', x)) > 8) 'extraWash' else 'noExtraWash'}), levels=fixed_levels[['washes']])
 
-# histology may or may not be known
-if (!'histology' %in% colnames(groups)){
-  groups$histology <- as.factor('unknown')
-}
-
 # Add proper levels to EHK and plates
 groups$EHK <- factor(as.vector(groups$EHK),
                      levels = as.vector(c(1:10)))
-
 
 fixed_levels[['plate']] <- as.vector(levels(groups$plate))
 fixed_levels[['plate']] <- fixed_levels[['plate']][order(as.numeric(gsub("plate", "", fixed_levels[['plate']])))]
 groups$plate <- factor(as.vector(groups$plate), levels = fixed_levels[['plate']])
 
-print('The plate distribution across plates is seen to be:')
+cat('\nThe plate distribution across plates is seen to be:\n')
 print(table(groups[,c('sequencer', 'plate')]))
-print('The wash distribution across plates is seen to be:')
+cat('\nThe wash distribution across plates is seen to be:\n')
 print(table(groups[,c('washes', 'plate')]))
 
-useSequencerToBC <- FALSE
-
 # See https://support.bioconductor.org/p/36029/#100297
+# See https://support.bioconductor.org/p/66251/#66252
 # This is how Gordon Smyth suggests you handle batch effect in the DE
 design_formula = '~0+group'
-covariates = c()
+factor_covariates = c('group')
 
-if (args$BATCH_CORRECT) {
-  if (!'plate' %in% colnames(groups)) {
-    stop('Cannot run a DGE without plates to batch correct on.')
+for (m in  args$MODEL_COVARIATE) {
+  if (!m%in%colnames(groups)){
+    cat(paste0('Cannot add ', m, ' to the model since it is not in the groups dataframe.\n'))
+    next
   }
-  design_formula <- paste0(design_formula, '+plate')
-  covariates = c(covariates, 'plates')
-  useSequencerToBC <- FALSE
-  temp <- colSums(apply(table(groups[,c('sequencer', 'plate')]), 1, as.logical))
-  if (any(temp < 2)){
-    print(paste0('Even though multiple sequencers were detected, they won\'t ',
-                 'be used for batch correction since it only corresponds to ',
-                 'one plate or fewer.'))
-  } else {
-    covariates = c(covariates, 'sequencer')
-    design_formula <- paste0(design_formula, '+sequencer')
+  
+  if (length(unique(groups[[m]])) > 1) {
+    if (is.factor(groups[[m]])){
+      factor_covariates = c(factor_covariates, m)
+    }
+    design_formula <- paste0(design_formula, '+', m)
     useSequencerToBC <- TRUE
+    cat(paste0('Added ', m, ' to the model.\n'))
+  } else {
+    cat(paste0('Covariate ', m, ' is constant across all samples. Skipping.\n'))
   }
-  #temp <- colSums(apply(table(groups[,c('washes', 'plate')]), 1, as.logical))
-  #if (any(temp < 2)){
-  #  print(paste0('Even though multiple sequencers were detected, they won\'t ',
-  #               'be used for batch correction since it only corresponds to ',
-  #               'one plate or fewer.'))
-  #} else {
-  #  covariates = c(covariates, 'sequencer')
-  #  design_formula <- paste0(design_formula, '+sequencer')
-  #  useSequencerToBC <- TRUE
-  #}
-  print(paste0('Batch correcting with [', paste(covariates, collapse=', ') ,'] as covariates'))
-} else {
-  print('Foregoing Batch correction')
-} # if (args$BATCH_CORRECT)/else
+}
 
 design <- model.matrix(as.formula(design_formula), data=groups) #limma
 
-colnames(design) <- gsub("washes", "", gsub("sequencer", "",  gsub("plateplate","plate", gsub("group", "", colnames(design)))))
-print ("Made Design Model")
-v <- voom(y, design)
+for (l in levels(groups$group)) {
+  colnames(design) <- gsub(paste0("^", "group", l, "$"), l, colnames(design))
+}
+cat("\nUsing design Model: \n")
+print(design)
+
+logcpm_matrices <- list()
+dge_list <- DGEList(counts=counts, group=groups$group)
+logcpm_matrices[['unnormalized']] <- cpm(dge_list, log=TRUE)
+cat ("Made DGElist.\n")
+dge_list <- dge_list[ rowSums(dge_list$counts) > 60, keep.lib.size=FALSE ]
+dge_list <- calcNormFactors(dge_list, method="TMM")
+logcpm_matrices[['TMMnormalized']] <- cpm(dge_list, log=TRUE)
+cat ("Normalization done.\n")
+
+v <- voom(dge_list, design)
 fit <- lmFit(v, design)
-print ("Limma fit done")
+cat ("Limma fit done.\n")
 
 i=1
 conts <- c()
@@ -243,61 +298,61 @@ for (comb in combs){
     i <- i+1
 }
 
-
 cont_matrix <- makeContrasts(contrasts=conts, levels = design )#limma
 colnames(cont_matrix) <- cnames
-print ("Made contrast matrix")  #limma
+cat ("Using contrast matrix:\n")  #limma
+print(cont_matrix)
 
 fit2 <- contrasts.fit(fit, cont_matrix)  #limma
 fit2 <- eBayes(fit2, robust=TRUE)  #limma
-print ("Fit2 done")
+cat ("Fit2 done.\n")
 
-temp <- sort(fit2$sigma, decreasing = T)[args$MOST_VARIABLE_CUTOFF]
-top_most_variable_genes = rownames(fit2$coefficients)[fit2$sigma >= temp]
 
-pal <- colorRampPalette(c("light grey", "Dark Blue"))
-
+# Setup the colors for the plots
 cols <- list(
   group = brewer.pal(max(length(levels(groups$group)), 3), "Accent"),
-  plate = rainbow(length(levels(groups$plate))),
-  EHK = pal(10),
   washes = c('black', 'lightgrey'),
-  sequencer = c('black', 'lightgrey'),
-  histology = brewer.pal(max(length(levels(groups$histology)), 3), "Spectral")
+  sequencer = c('black', 'lightgrey')
 )
 
-num_cols <- list()
+numeric_cols <- list()
 
 for (annot in rownames(annot_cols)) {
   if (annot %in% names(cols)){
     next
   }
-  suppmsg <- assert_that(annot_cols[annot, 'cmap'] %in% c('rainbow', rownames(brewer.pal.info)))
   
   if (annot_cols[annot, 'type'] == "factor"){
+    groups[[annot]] <- as.factor(groups[[annot]])
     num_vals <- length(levels(groups[[annot]]))
   } else if (annot_cols[annot, 'type'] == "numeric") {
-    
-    num_cols[[annot]] <- list(palette=annot_cols[annot, 'cmap'])
+    if (!annot_cols[annot, 'cmap'] %in% rownames(brewer.pal.info)) {
+      stop(paste0('Currently only color palettes from brewer are allowed for numerical annotations',
+                  'Choose from one of ', paste(rownames(brewer.pal.info), collapse=", ")))
+    }
+    numeric_cols[[annot]] <- list(palette=annot_cols[annot, 'cmap'])
     if (endsWith(annot, "_frac")){
-      num_cols[[annot]][["low"]] <- 0
-      num_cols[[annot]][["high"]] <- 1
+      numeric_cols[[annot]][["low"]] <- 0
+      numeric_cols[[annot]][["high"]] <- 1
     } else if (endsWith(annot, "_pct")){
-      num_cols[[annot]][["low"]] <- 0
-      num_cols[[annot]][["high"]] <- 100
+      numeric_cols[[annot]][["low"]] <- 0
+      numeric_cols[[annot]][["high"]] <- 100
     } else {
-      num_cols[[annot]][["low"]] <- min(groups[[annot]])
-      num_cols[[annot]][["high"]] <- max(groups[[annot]])
+      numeric_cols[[annot]][["low"]] <- min(groups[[annot]], na.rm = T)
+      numeric_cols[[annot]][["high"]] <- max(groups[[annot]], na.rm = T)
     }
     num_vals <- 10
   } else{
     assert_that(FALSE, msg="Cannot handle non-factor/numeric types for annot right now.")
   }
   
-  if (annot_cols[annot, 'cmap'] == 'rainbow'){
-    cols[[annot]] = rainbow(num_vals)  
-  } else {
+  if(annot_cols[annot, 'cmap'] %in% rownames(brewer.pal.info)) {
     cols[[annot]] = brewer.pal(max(num_vals, 3), annot_cols[annot, 'cmap'])  
+  } else {
+    # This assumes the user has passed in a function that can be evaluated to
+    # generate a palette
+    pal = eval(parse(text=annot_cols[annot, 'cmap']))
+    cols[[annot]] = pal(num_vals)
   }
 } # for (annot in rownames(annot_cols))
 
@@ -308,14 +363,16 @@ legend.text <- c()
 legend.fill <- c()
 
 for (annot_group in names(cols)) {
-  if (annot_group %in% names(num_cols)) {
-    pct <- (num_cols[[annot_group]][['high']]-num_cols[[annot_group]][['low']])/10
-    vals <- sapply(groups[[annot_group]], function(x){min((x-num_cols[[annot_group]][['low']])%/%pct+1, 10)})
-    labs <- cbind(labs, cols[[annot_group]][vals])
+  if (annot_group %in% names(numeric_cols)) {
+    pct <- (numeric_cols[[annot_group]][['high']]-numeric_cols[[annot_group]][['low']])/10
+    vals <- sapply(groups[[annot_group]], function(x){min((x-numeric_cols[[annot_group]][['low']])%/%pct+1, 10)})
+    vals <- cols[[annot_group]][vals]
+    vals[is.na(vals)] <- 'black'
+    labs <- cbind(labs, vals)
     labs.colnames <- c(labs.colnames, annot_group)
     
-    legend.text <- c(legend.text, c("low", "medium", "high"), "")
-    legend.fill <- c(legend.fill, cols[[annot_group]][c(1,5, 10)], 'white')
+    legend.text <- c(legend.text, c("NA", "low", "medium", "high"), "")
+    legend.fill <- c(legend.fill, 'grey', cols[[annot_group]][c(1,5, 10)], 'white')
     
   } else {
     labs <- cbind(labs, cols[[annot_group]][groups[[annot_group]]])
@@ -332,200 +389,203 @@ for (annot_group in names(cols)) {
     } else {
       legend.fill <- c(legend.fill, cols[[annot_group]][as.factor(levels(groups[[annot_group]]))], 'white')  
     }
-  } # if (annot_group %in% names(num_cols)) / else
+  } # if (annot_group %in% names(numeric_cols)) / else
 } # for (annot_group in names(cols)) 
 
 colnames(labs) <- labs.colnames
 rownames(labs) <- rownames(groups)
 
-design <- model.matrix(~0+group, data=groups) #limma
-colnames(design) <- gsub("group", "", colnames(design))
 hclust.ward = function(d) hclust(d,method="ward.D2")
 
-string_processing_DE <- function(cname, top_table, string_db) {
-  # Do the string stuff
-  top_table_mapped <- string_db$map(top_table, "gene", removeUnmappedRows = TRUE )
-  dropped_genes <- top_table[!top_table$gene%in%top_table_mapped$gene, 'gene']
-  print("The following genes were dropped from the STRING analysis:")
-  cat(dropped_genes, sep="\n")
-  hits <- top_table_mapped$STRING_id[1:200]
-  top_table_mapped_pval05 <- string_db$add_diff_exp_color( subset(top_table_mapped, P.Value<0.05), logFcColStr="logFC" )
-  # post payload information to the STRING server
-  payload_id <- string_db$post_payload( top_table_mapped_pval05$STRING_id, colors=top_table_mapped_pval05$color )
-  # display a STRING network png with the "halo"
-  png(filename=paste(args$OUT_FOLDER, paste('voom_', cname, '_DE_top200STRINGdb.png',sep=''), sep='/'), width = 10, height = 10, units = "in", res = 150)
-  string_db$plot_network( hits, payload_id=payload_id )
-  dev.off()
-  
-  hits <- top_table_mapped_pval05$STRING_id
-  enrichmentGO <- string_db$get_enrichment( hits, category = "Process", methodMT = "fdr", iea = TRUE )
-  enrichmentKEGG <- string_db$get_enrichment( hits, category = "KEGG", methodMT = "fdr", iea = TRUE )
-  write.table(enrichmentGO, file=paste(args$OUT_FOLDER, paste('voom_', cname, '_DE_GOenrichment.tsv',sep=''), sep='/'), sep='\t', row.names=F, col.names=T, quote=F)
-  write.table(enrichmentKEGG, file=paste(args$OUT_FOLDER, paste('voom_', cname, '_DE_KEGGenrichment.tsv',sep=''), sep='/'), sep='\t', row.names=F, col.names=T, quote=F)
-  
-  enrichmentGO20 <- head(enrichmentGO, n=20) 
-  top_annotations <- string_db$annotations[string_db$annotations$term_id %in% enrichmentGO20$term_id,]
-  top_annotations <- top_annotations[top_annotations$STRING_id %in% top_table_mapped_pval05$STRING_id,]
-  top_annotations$gene <- sapply(top_annotations$STRING_id, function(x) {paste(top_table_mapped_pval05[top_table_mapped_pval05$STRING_id==x, 'gene'], collapse=',')})
-  top_annotations$description <- sapply(top_annotations$term_id, function(x) {enrichmentGO20[enrichmentGO20$term_id==x, 'term_description']})
-  top_annotations$regulation <- sapply(top_annotations$gene, function(x) {ifelse(!(x %in% top_table_mapped_pval05$gene), 'UNKNOWN', ifelse(top_table_mapped_pval05[top_table_mapped_pval05$gene==x, 'logFC'] > 0, 'UP', 'DOWN'))})
-  top_annotations <- top_annotations[, c('gene', 'regulation', 'term_id', 'description')]
-  top_annotations <- top_annotations[order(top_annotations$term_id, top_annotations$regulation),]
-  write.table(top_annotations, file=paste(args$OUT_FOLDER, paste('voom_', cname, '_DE_GOenrichment_genes.tsv',sep=''), sep='/'), sep='\t', row.names=F, col.names=T, quote=F)
+cat ("Setup all color palettes.\n")
 
-  enrichmentKEGG20 <- head(enrichmentKEGG, n=20) 
-  top_annotations <- string_db$annotations[string_db$annotations$term_id %in% enrichmentKEGG20$term_id,]
-  top_annotations <- top_annotations[top_annotations$STRING_id %in% top_table_mapped_pval05$STRING_id,]
-  top_annotations$gene <- sapply(top_annotations$STRING_id, function(x) {paste(top_table_mapped_pval05[top_table_mapped_pval05$STRING_id==x, 'gene'], collapse=',')})
-  top_annotations$description <- sapply(top_annotations$term_id, function(x) {enrichmentKEGG20[enrichmentKEGG20$term_id==x, 'term_description']})
-  top_annotations$regulation <- sapply(top_annotations$gene, function(x) {ifelse(!(x %in% top_table_mapped_pval05$gene), 'UNKNOWN', ifelse(top_table_mapped_pval05[top_table_mapped_pval05$gene==x, 'logFC'] > 0, 'UP', 'DOWN'))})
-  top_annotations <- top_annotations[, c('gene', 'regulation', 'term_id', 'description')]
-  top_annotations <- top_annotations[order(top_annotations$term_id, top_annotations$regulation),]
-  write.table(top_annotations, file=paste(args$OUT_FOLDER, paste('voom_', cname, '_DE_KEGGenrichment_genes.tsv',sep=''), sep='/'), sep='\t', row.names=F, col.names=T, quote=F)
-} # string_processing_DE
-
-
-string_processing_PCA <- function(cname, pca_weights_table, pc, string_db) {
-  # Do the string stuff
-  pca_weights_table_mapped <- string_db$map(pca_weights_table, "gene", removeUnmappedRows = TRUE )
-  dropped_genes <- pca_weights_table[!pca_weights_table$gene%in%pca_weights_table_mapped$gene, 'gene']
-  print("The following genes were dropped from the STRING analysis:")
-  cat(dropped_genes, sep="\n")
-  hits <- pca_weights_table_mapped$STRING_id
-  pca_weights_table_mapped <- string_db$
-    add_diff_exp_color(pca_weights_table_mapped, logFcColStr="weight" )
-  # post payload information to the STRING server
-  payload_id <- string_db$post_payload( pca_weights_table_mapped$STRING_id, colors=pca_weights_table_mapped$color )
-  # display a STRING network png with the "halo"
-  png(filename=paste(args$OUT_FOLDER, paste('voom_', cname, '_PC', pc, '_top200STRINGdb.png',sep=''), sep='/'), width = 10, height = 10, units = "in", res = 150)
-  string_db$plot_network( hits, payload_id=payload_id )
-  dev.off()
+for (nm in names(logcpm_matrices)) {
+  nmlcpm <- logcpm_matrices[[nm]]
   
-  enrichmentGO <- string_db$get_enrichment( hits, category = "Process", methodMT = "fdr", iea = TRUE )
-  enrichmentKEGG <- string_db$get_enrichment( hits, category = "KEGG", methodMT = "fdr", iea = TRUE )
-  write.table(enrichmentGO, file=paste(args$OUT_FOLDER, paste('voom_', cname, '_PC', pc, '_GOenrichment.tsv',sep=''), sep='/'), sep='\t', row.names=F, col.names=T, quote=F)
-  write.table(enrichmentKEGG, file=paste(args$OUT_FOLDER, paste('voom_', cname, '_PC', pc, '_KEGGenrichment.tsv',sep=''), sep='/'), sep='\t', row.names=F, col.names=T, quote=F)
-  
-  enrichmentGO20 <- head(enrichmentGO, n=20) 
-  top_annotations <- string_db$annotations[string_db$annotations$term_id %in% enrichmentGO20$term_id,]
-  top_annotations <- top_annotations[top_annotations$STRING_id %in% pca_weights_table_mapped$STRING_id,]
-  top_annotations$gene <- sapply(top_annotations$STRING_id, function(x) {paste(pca_weights_table_mapped[pca_weights_table_mapped$STRING_id==x, 'gene'], collapse=',')})
-  top_annotations$description <- sapply(top_annotations$term_id, function(x) {enrichmentGO20[enrichmentGO20$term_id==x, 'term_description']})
-  top_annotations$weightage <- sapply(top_annotations$gene, function(x) {ifelse(!(x %in% pca_weights_table_mapped$gene), 'UNKNOWN', ifelse(pca_weights_table_mapped[pca_weights_table_mapped$gene==x, 'weight'] > 0, 'POS', 'NEG'))})
-  top_annotations <- top_annotations[, c('gene', 'weightage', 'term_id', 'description')]
-  top_annotations <- top_annotations[order(top_annotations$term_id, top_annotations$weightage),]
-  write.table(top_annotations, file=paste(args$OUT_FOLDER, paste('voom_', cname, '_PC', pc, '_GOenrichment_genes.tsv',sep=''), sep='/'), sep='\t', row.names=F, col.names=T, quote=F)
-  
-  enrichmentKEGG20 <- head(enrichmentKEGG, n=20) 
-  top_annotations <- string_db$annotations[string_db$annotations$term_id %in% enrichmentKEGG20$term_id,]
-  top_annotations <- top_annotations[top_annotations$STRING_id %in% pca_weights_table_mapped$STRING_id,]
-  top_annotations$gene <- sapply(top_annotations$STRING_id, function(x) {paste(pca_weights_table_mapped[pca_weights_table_mapped$STRING_id==x, 'gene'], collapse=',')})
-  top_annotations$description <- sapply(top_annotations$term_id, function(x) {enrichmentKEGG20[enrichmentKEGG20$term_id==x, 'term_description']})
-  top_annotations$weightage <- sapply(top_annotations$gene, function(x) {ifelse(!(x %in% pca_weights_table_mapped$gene), 'UNKNOWN', ifelse(pca_weights_table_mapped[pca_weights_table_mapped$gene==x, 'weight'] > 0, 'POS', 'NEG'))})
-  top_annotations <- top_annotations[, c('gene', 'weightage', 'term_id', 'description')]
-  top_annotations <- top_annotations[order(top_annotations$term_id, top_annotations$weightage),]
-  write.table(top_annotations, file=paste(args$OUT_FOLDER, paste('voom_', cname, '_PC', pc, '_KEGGenrichment_genes.tsv',sep=''), sep='/'), sep='\t', row.names=F, col.names=T, quote=F)
-} # string_processing_PCA
-
-
-for (nm in c('normalized', 'unnormalized')) {
-  print(paste0('Plotting unbiased heatmap with ', nm, ' cpms'))
-  
-  if (nm == 'normalized'){
-    nmlcpm <- lcpm2
-  } else {
-    nmlcpm <- lcpm
+  cat(paste0('Plotting raw pca with ', nm, ' cpms\n'))
+  pcs <- prcomp(t(nmlcpm))
+  ap <- list()
+  for (annot_name in names(cols)) {
+    if (annot_name == 'group'){
+      ap[[annot_name]] <- autoplot(pcs, data=groups, shape=annot_name, col=annot_name, size=5, alpha=0.75) + 
+        geom_text_repel(aes(label=rownames(groups))) + 
+        scale_color_manual(values=cols[[annot_name]]) +
+        theme_bw()
+    } else if (annot_name %in% names(numeric_cols)){
+      ap[[annot_name]] <- autoplot(pcs, data=groups, shape='group', col=annot_name, size=5, alpha=0.75) + 
+        scale_color_distiller(palette=numeric_cols[[annot_name]][["palette"]], limits = c(numeric_cols[[annot_name]][["low"]], numeric_cols[[annot_name]][["high"]])) +
+        theme_bw()
+    } else {
+      ap[[annot_name]] <- autoplot(pcs, data=groups, shape='group', col=annot_name, size=5, alpha=0.75) + 
+        scale_color_manual(values=cols[[annot_name]]) +
+        theme_bw()
+    }
   }
   
-  png(filename=paste(args$OUT_FOLDER, paste('voom_', gsub('.{6}$', '', nm), '_unbiased_top', args$MOST_VARIABLE_CUTOFF, '_heatmap.png',sep=''), sep='/'), width = 20, height = 15, units = "in", res = 150)
-  coolmap.2(nmlcpm[top_most_variable_genes,], 
-            ColSideColors=labs, 
-            margins=c(12, 25))  
-  legend("topright",
-         legend=legend.text,
-         fill=legend.fill,
-         border=FALSE,
-         bty="n",
-         y.intersp = 0.7,
-         cex=0.7)
+  png(filename=paste(args$OUT_FOLDER, paste('voom_', gsub('.{6}$', '', nm), '_pca.png',sep=''), sep='/'), width = 30, height =  ceiling(length(ap)/3) *10 , units = "in", res = 150)
+  grid.arrange(grobs=ap, ncol = 3)
   dev.off()
-} # for (nm in c('normalized', 'unnormalized')) 
+  
+  x <- as.data.frame(pcs$x)
+  x$group = groups$group
+  y <- melt(x, id.vars = 'group', variable.name = 'PC')
+  
+  png(filename=paste(args$OUT_FOLDER, paste('voom_', gsub('.{6}$', '', nm), '_pca_boxplots.png',sep=''), sep='/'), width = 30, height =  ceiling(length(ap)/3) *10 , units = "in", res = 150)
+  print(ggplot(y, aes(x=group, y=value)) + geom_boxplot() + stat_compare_means(method = "t.test") + facet_wrap(~PC, ncol=5))
+  dev.off()
+  
+  for (pc in c(1, 2)) {
+    best_correlation <- data.frame(Sr=sort(apply(nmlcpm, 1, function(x) {cor(x, pcs$x[,pc], method="spearman")})))
+    best_correlation$ensembl <- rownames(best_correlation)
+    best_correlation$trend <- ifelse(best_correlation$Sr>0, 'POS', 'NEG')
+    best_correlation <- best_correlation %>% group_by(trend) %>% top_n(20, wt=abs(Sr))
+    best_correlation[['Sr_sqr']]  <-  round(best_correlation$Sr ** 2, 2)
+    best_correlation[['Sr']]  <-  round(best_correlation$Sr, 2)
+    best_correlation <- add_gene_symbol(best_correlation)
+    best_correlation <- best_correlation[, c('hugo', 'ensembl', 'Sr', 'Sr_sqr', 'trend')]
+    write.table(best_correlation, 
+                file=paste0(args$OUT_FOLDER, 
+                            '/voom_', gsub('.{6}$', '', nm), '_PC', pc, '_correlating_genes.tsv'),
+                sep='\t', quote=F, row.names = F, col.names = T)
 
-for (cname in cnames){
+    top_rotations <- data.frame(weight=round(pcs$rotation[, pc][order(-abs(pcs$rotation[, pc]))][c(1:200)], 4))
+    top_rotations$ensembl <- rownames(top_rotations)
+    top_rotations <- add_gene_symbol(top_rotations)
+    top_rotations$trend <- ifelse(top_rotations$weight>0, 'POS', 'NEG')
+    top_rotations <- top_rotations[, c("ensembl", "hugo", "weight", "trend")]
+    write.table(top_rotations, 
+                file=paste0(args$OUT_FOLDER, 
+                            '/voom_', gsub('.{6}$', '', nm), '_PC', pc, '_top200_weights.tsv'),
+                row.names = F, 
+                col.names=T, 
+                sep="\t", 
+                quote=F)
+    
+    if (args$RUN_STRING_PCA){
+      cat(paste0('Running STRING on pc ', pc, '\n'))
+      try(run_string(paste(args$OUT_FOLDER, paste0('voom_', gsub('.{6}$', '', nm), '_PC', pc), sep="/"),
+                           top_table=top_rotations, 
+                           string_db=string_db, 
+                           usesig=FALSE,
+                           logFcColStr="weight",
+                           trend_col="weightage",
+                           trend_classes=c('POS', 'NEG')))
+    }
+    if (args$RUN_DAVID_PCA){
+      cat(paste0('Running DAVID on pc ', pc, '\n'))
+      try(run_david(paste(args$OUT_FOLDER, paste0('voom_', gsub('.{6}$', '', nm), '_PC', pc), sep="/"),
+                   top_table=top_rotations, 
+                   david_db=david_db, 
+                   genelist_prefix = paste0(nm, '_', pc),
+                   logFcColStr="weight",
+                   trend_col="weightage",
+                   trend_classes=c('POS', 'NEG')))
+    }
+  } 
+  
+  for (mvc in args$MOST_VARIABLE_CUTOFF) {
+    cat(paste0('Plotting unbiased heatmap with ', nm, ' cpms across ', mvc, ' variable genes.\n'))
+    top_most_variable_genes = rownames(fit2$coefficients)[order(-fit2$sigma)][c(0:mvc)]
+    png(filename=paste(args$OUT_FOLDER, paste('voom_', 
+                                              gsub('.{6}$', '', nm), 
+                                              '_unbiased_top', 
+                                              mvc, 
+                                              '_heatmap.png',
+                                              sep=''), 
+                       sep='/'), 
+        width = 20, 
+        height = 15, units = "in", res = 150)
+    temp_rownames <- ensembl_to_symbol[ensembl_to_symbol$ensembl %in% top_most_variable_genes, ]
+    rownames(temp_rownames) <- temp_rownames$ensembl
+    temp_rownames <- temp_rownames[top_most_variable_genes, ]
+    temp <- nmlcpm[top_most_variable_genes,]
+    rownames(temp) <- temp_rownames$hugo
+    coolmap.2(temp, 
+              ColSideColors=labs, 
+              margins=c(12, 25),
+              cbar_extreme=2,
+              ColSideColorSeparator=TRUE,
+              cexCol=1)
+    legend("topright",
+           legend=legend.text,
+           fill=legend.fill,
+           border=FALSE,
+           bty="n",
+           y.intersp = 0.7,
+           cex=0.7,
+           ncol=1)
+    dev.off()
+  } # for (mvc in args$MOST_VARIABLE_CUTOFF)
+} # for (nm in names(logcpm_matrices))
+
+for (cname in cnames) {
   top_table = topTable(fit2, coef=cname, sort="p", number=Inf)
   top_table$col <- 0
-  top_table$gene <- rownames(top_table)
-  top_table <- top_table[order(top_table$P.Value),]
-  top_100 <- c(rownames(head(top_table[top_table$logFC<0 & top_table$P.Value <= 0.005,], 100)), rownames(head(top_table[top_table$logFC>0 & top_table$P.Value <= 0.005,], 100)))
+  top_table$ensembl <- rownames(top_table)
+  top_table <- add_gene_symbol(top_table)
+  top_table <- top_table[order(top_table$adj.P.Val),]
+  top_100 <- c(rownames(head(top_table[top_table$logFC<0 & top_table$adj.P.Val <= 0.05,], 100)), rownames(head(top_table[top_table$logFC>0 & top_table$adj.P.Val <= 0.05,], 100)))
   #top_n <- c(rownames(head(top_table[top_table$logFC<0 & top_table$P.Value <= 0.005,], 25)), rownames(head(top_table[top_table$logFC>0 & top_table$P.Value <= 0.005,], 25)))
   #top_n <- c(rownames(head(top_table[top_table$logFC<0 & top_table$P.Value <= 0.005,], 50)), rownames(head(top_table[top_table$logFC>0 & top_table$P.Value <= 0.005,], 50)))
-  top_n <-rownames(top_table[top_table$P.Value <= 0.005,])
-  top_table[rownames(top_table[top_table$P.Value<0.05,]), "col"] = 1
+  top_n <-rownames(top_table[top_table$adj.P.Val <= 0.05,])
+  top_n_hugo <-top_table[top_table$adj.P.Val <= 0.05, 'hugo']
+  top_table[rownames(top_table[top_table$adj.P.Val<0.05,]), "col"] = 1
   top_table[top_100, "col"] = 2
   top_table$col <- as.factor(top_table$col)
-  write.table(top_table, file=paste(args$OUT_FOLDER, paste('voom_', cname, '.tsv',sep=''), sep='/'), sep='\t', row.names=T, col.names=T, quote=F)
-  p <- ggplot(top_table, aes(logFC, -log10(P.Value))) + 
+  
+  write.table(top_table, 
+              file=paste(args$OUT_FOLDER, paste('voom_', cname, '.tsv',sep=''), sep='/'), 
+              sep='\t', 
+              row.names=F, 
+              col.names=T, 
+              quote=F)
+  p <- ggplot(top_table, aes(logFC, -log10(adj.P.Val))) + 
           geom_point(aes(col=col)) + 
           scale_color_manual(values=c("black", "red", "red")) + 
           theme(legend.position = "none") + 
-          geom_text_repel(data=filter(top_table, col=='2'), aes(label=gene), size=2, color='black')
+          geom_text_repel(data=filter(top_table, col=='2'), 
+                          aes(label=hugo), 
+                          size=2, 
+                          color='black')
   png(filename=paste(args$OUT_FOLDER, paste('voom_', cname, '.png',sep=''), sep='/'), width = 10, height = 10, units = "in", res = 150)
   print(p)
   dev.off()
   
   if (args$RUN_STRING_DE){
-    string_processing_DE(cname, top_table, string_db)
+    try(run_string(paste(args$OUT_FOLDER, 
+                         paste0(cname, '_DE'), 
+                         sep="/"),
+                   top_table = top_table[top_table$adj.P.Val<0.05, ], 
+                   string_db = string_db, 
+                   usesig=FALSE,
+                   logFcColStr="logFC",
+                   trend_col="regulation",
+                   trend_classes=c('UP', 'DOWN')))
   }
-
-  if (args$BATCH_CORRECT) {
-    print('Creating a batch corrected matrix for PCA and heatmaps')
-    if (useSequencerToBC){
-      x <- removeBatchEffect(lcpm, batch=groups$plate, batch2=groups$sequencer, design=design)
-    } else {
-      x <- removeBatchEffect(lcpm, batch=groups$plate, design=design)
-    }
-    print('Plotting Batch corrected heatmap')
-    png(filename=paste(args$OUT_FOLDER, paste('voom_', cname, '_bc_heatmap.png',sep=''), sep='/'), width = 10, height = 10, units = "in", res = 150)
-    #coolmap.2(x[top_n,], linkage.row='ward', linkage.col='ward', ColSideColors=labs, margins=c(12, 12))
-    #coolmap.2(x[top_n,], hclust=hclust.ward, ColSideColors=labs, margins=c(12, 12))
-    coolmap.2(x[top_n,], ColSideColors=labs, margins=c(12, 12))
-    legend("topright",
-           legend=c(as.character(levels(groups$group)), 
-                    "", 
-                    as.character(levels(groups$plate)), 
-                    "", 
-                    c('hiseq', 'novaseq')),
-           fill=c(group_cols[as.factor(levels(groups$group))], 
-                  'white', 
-                  plate_cols[as.factor(levels(groups$plate))], 
-                  'white', 
-                  'black', 'lightgrey'),
-           border=FALSE,
-           bty="n",
-           y.intersp = 0.7,
-           cex=0.7)
-    dev.off()
-    print('Plotting Batch corrected pca')
-    png(filename=paste(args$OUT_FOLDER, paste('voom_', cname, '_bc_pca.png',sep=''), sep='/'), width = 10, height = 10, units = "in", res = 150)
-    #ap <- autoplot(prcomp(t(x), center=TRUE, scale.=TRUE), data=groups, shape='group', col='plate', size=5, alpha=0.5)
-    ap <- autoplot(prcomp(t(x)), data=groups, shape='group', col='plate', size=5, alpha=0.5)
-    print(ap)
-    dev.off()
-  } # if (args$BATCH_CORRECT)
+  if (args$RUN_DAVID_DE){
+    try(run_david(paste(args$OUT_FOLDER, 
+                         paste0(cname, '_DE'), 
+                         sep="/"),
+                   top_table = top_table[top_table$adj.P.Val<0.05, ], 
+                   david_db = david_db, 
+                   genelist_prefix = cname,
+                   logFcColStr="logFC",
+                   trend_col="regulation",
+                   trend_classes=c('UP', 'DOWN')))
+  }
   
-  for (nm in c('unnormalized', 'normalized')) {
-    print(paste0('Plotting raw heatmap with ', nm, ' cpms'))
-    
-    if (nm == 'normalized'){
-      nmlcpm <- lcpm2
-    } else {
-      nmlcpm <- lcpm
-    }
+  for (nm in names(logcpm_matrices)) {
+    nmlcpm <- logcpm_matrices[[nm]]
+    cat(paste0('Plotting raw heatmap with ', nm, ' cpms\n'))
     
     png(filename=paste(args$OUT_FOLDER, paste('voom_', cname, '_', gsub('.{6}$', '', nm), '_heatmap.png',sep=''), sep='/'), width = 20, height = 15, units = "in", res = 150)
-    coolmap.2(nmlcpm[top_n,], 
+
+    temp <- nmlcpm[top_n,]
+    rownames(temp) <- top_n_hugo
+    coolmap.2(temp, 
               ColSideColors=labs, 
-              margins=c(12, 25))  
+              margins=c(12, 25),
+              cbar_extreme=2)  
     legend("topright",
            legend=legend.text,
            fill=legend.fill,
@@ -534,69 +594,5 @@ for (cname in cnames){
            y.intersp = 0.7,
            cex=0.7)
     dev.off()
-    
-    print(paste0('Plotting raw pca with ', nm, ' cpms'))
-    pcs <- prcomp(t(nmlcpm))
-    ap <- list()
-    for (annot_name in names(cols)){
-      if (annot_name == 'group'){
-        ap[[annot_name]] <- autoplot(pcs, data=groups, shape=annot_name, col=annot_name, size=5, alpha=0.75) + 
-                                geom_text_repel(aes(label=rownames(groups))) + 
-                                scale_color_manual(values=cols[[annot_name]])
-      } else if (annot_name %in% names(num_cols)){
-        ap[[annot_name]] <- autoplot(pcs, data=groups, shape='group', col=annot_name, size=5, alpha=0.75) + 
-                                scale_color_distiller(palette=num_cols[[annot_name]][["palette"]], limits = c(num_cols[[annot_name]][["low"]], num_cols[[annot_name]][["high"]]))
-      } else {
-        ap[[annot_name]] <- autoplot(pcs, data=groups, shape='group', col=annot_name, size=5, alpha=0.75) + 
-                                scale_color_manual(values=cols[[annot_name]])
-      }
-    }
-    
-    png(filename=paste(args$OUT_FOLDER, paste('voom_', cname, '_', gsub('.{6}$', '', nm), '_pca.png',sep=''), sep='/'), width = 30, height =  ceiling(length(ap)/3) *10 , units = "in", res = 150)
-    grid.arrange(grobs=ap, ncol = 3)
-    dev.off()
-
-    x <- as.data.frame(pcs$x)
-    x$group = groups$group
-    y <- melt(x, id.vars = 'group', variable.name = 'PC')
-
-    png(filename=paste(args$OUT_FOLDER, paste('voom_', cname, '_', gsub('.{6}$', '', nm), '_pca_boxplots.png',sep=''), sep='/'), width = 30, height =  ceiling(length(ap)/3) *10 , units = "in", res = 150)
-    print(ggplot(y, aes(x=group, y=value)) + geom_boxplot() + stat_compare_means(method = "t.test") + facet_wrap(~PC, ncol=5))
-    dev.off()
-    
-    write_text <- c()
-    for (pc in c(1, 2)) {
-      best_correlation <- sort(apply(nmlcpm, 1, function(x) {cor(x, pcs$x[,pc], method="spearman")}))
-      write_text <- c(write_text, paste0("Top 20 negatively correlated genes with PC", pc))
-      write_text <- c(write_text, "Gene\tr\tr^2")
-      for (i in names(best_correlation[c(1:20)])){
-        write_text <- c(write_text, paste(i, round(best_correlation[i], 2), round(best_correlation[i]**2, 2), sep='\t'))
-      }
-      write_text <- c(write_text, '')
-      write_text <- c(write_text, paste0("Top 20 positively correlated genes with PC", pc))
-      write_text <- c(write_text, "Gene\tr\tr^2")
-      for (i in rev(names(best_correlation[c((length(best_correlation)-(20-1)):length(best_correlation))]))){
-        write_text <- c(write_text, paste(i, round(best_correlation[i], 2), round(best_correlation[i]**2, 2), sep='\t'))
-      }
-      write_text <- c(write_text, '')
-    } # for (pc in c(1, 2))
-    fileConn<-file(paste(args$OUT_FOLDER, paste('voom_', cname, '_', gsub('.{6}$', '', nm), '_pca_correlating_genes.txt',sep=''), sep='/'))
-    writeLines(write_text, fileConn)
-    close(fileConn)
-    
-    for (pc in c(1, 2)) {
-      x <- data.frame(weight=pcs$rotation[, pc][order(-abs(pcs$rotation[, pc]))][c(1:200)])
-      x$gene <- rownames(x)
-      write.table(x, 
-                  file=paste(args$OUT_FOLDER, paste('voom_', cname, '_', gsub('.{6}$', '', nm), '_pca_top200_weights.tsv',sep=''), sep='/'),
-                  row.names = T, 
-                  col.names=T, 
-                  sep="\t", 
-                  quote=F)
-      if (args$RUN_STRING_PCA){
-        string_processing_PCA(paste(cname, gsub('.{6}$', '', nm), sep="_"), x, pc, string_db)
-      }
-    } 
-  } # for (nm in c('unnormalized', 'normalized')) 
+  } # for (nm in names(logcpm_matrices))
 } # for (cname in cnames)
-
