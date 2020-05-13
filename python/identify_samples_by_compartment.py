@@ -12,7 +12,9 @@ def main():
                      'a key `patient` in the header. All other columns will be inherited by the '
                      'output.')
     grp.add_argument('--indication', type=str, help='An entire indication to process.')
-    parser.add_argument('--clinical', type=str, required=False, default=None)
+    parser.add_argument('--metadata', type=str, nargs='+', required=False, default=None, help='Any '
+                        'number of metadata tables to append to the patients. Should have one '
+                        'column called patient and any number of other columns.')
     parser.add_argument('--compartments', type=str, nargs='+', required=True)
     grp2 = parser.add_mutually_exclusive_group(required=False)
     grp2.add_argument('--split_by_compartment', action='store_true', required=False)
@@ -25,8 +27,8 @@ def main():
     params = parser.parse_args()
     #params = parser.parse_args(['--patients', 'gyn_patients.list', '--compartments', 'live', 'myeloid', 'tcell', 'tumor', 'stroma', 'epcam'])
     #params = parser.parse_args(['--indication', 'GYN', '--compartments', 'live', 'myeloid', 'tcell', 'tumor', 'stroma', 'epcam'])
-    #params = parser.parse_args(['--indication', 'GYN', '--clinical', '../histology.tsv', '--split_by_compartment', '--compartments', 'live', 'myeloid', 'tcell', 'tumor', 'stroma', 'epcam'])
-
+    #params = parser.parse_args(['--indication', 'GYN', '--metadata', '../histology.tsv', '--split_by_compartment', '--compartments', 'live', 'myeloid', 'tcell', 'tumor', 'stroma', 'epcam'])
+    #params = parser.parse_args(['--patients', 'patients_no_blacklist.tsv', '--metadata', '../histology.tsv', '../bcell_live_frac.tsv', '../bcell_not_gran_frac.tsv', '../pb_live_frac.tsv', '../pb_not_nk_frac.tsv', '--compartments', 'live', 'myeloid', 'tcell', 'tumor', 'stroma', 'epcam', '--split_by_compartment', '--ehk_cutoff', '7'])
     if params.patients:
         df = pd.read_csv(params.patients, sep='\t', header=0, index_col=None)
         if 'patient' not in df:
@@ -37,10 +39,18 @@ def main():
                                        for x in range(999)]})
         params.patients = '.'
 
-    if params.clinical:
-        dfc = pd.read_csv(params.clinical, sep='\t', header=0, index_col=None)
-        df = pd.merge(df, dfc, on='patient', how='left')
-        df.fillna('unknown')
+    if params.metadata:
+        metadata_df = pd.DataFrame(columns=['patient'])
+        for mdf in params.metadata:
+            assert os.path.exists(mdf)
+            dfc = pd.read_csv(mdf, sep='\t', header=0, index_col=None)
+            if 'patient' not in dfc.columns:
+                raise RuntimeError('Error processing metadata file ({}). Metadata tables must by '
+                                   'tsvs and must have a column called `patient`. '.format(mdf))
+            metadata_df = pd.merge(metadata_df, dfc, on='patient', how='outer')
+
+        df = pd.merge(df, metadata_df, on='patient', how='left')
+        df.fillna('unknown', inplace=True)
 
     df.index = df['patient']    
     additional_groups = [g for g in df.columns if g not in ['patient']]

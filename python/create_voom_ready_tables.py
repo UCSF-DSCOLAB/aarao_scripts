@@ -22,6 +22,7 @@ def ensg_to_hugo(gtf_file):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--samples', type=str, required=True)
+    parser.add_argument('--translate_to_hugo', action='store_true')
     parser.add_argument('--hugo_map', type=str, default=os.path.join(os.environ['KLAB'], 
                                                                      'ipi/data/refs/hg38_files',
                                                                      'hugo_to_ensg.tsv'))
@@ -42,8 +43,11 @@ def main():
         samples['plate'] = ''
         plates = False
 
-    hugo_map = pd.read_csv(params.hugo_map, sep='\t', header=0, index_col=0)
-    hugo_map.drop_duplicates(keep=False, inplace=True)
+    if params.translate_to_hugo:
+        hugo_map = pd.read_csv(params.hugo_map, sep='\t', header=0, index_col=0)
+        hugo_map.drop_duplicates(keep=False, inplace=True)
+    else:
+        hugo_map = None
 
     if params.data_dir.endswith('<DATA_TYPE>'):
         params.data_dir = params.data_dir[:-11] + params.data_type
@@ -65,9 +69,13 @@ def main():
         _samples = [re.sub(r'\.r0', '', s) for s in _df.columns]
         if plates:
             # Assuming that if you know th eplate, you know the exact sample name
-            _samples = {s: i+1 for i, s in enumerate(_samples) if s in samples.loc[samples['plate']==plate].index}
+            _samples = {s: i+1 
+                            for i, s in enumerate(_samples) 
+                                if s in samples.loc[samples['plate']==plate].index}
         else:
-            _samples = {s: i+1 for i, s in enumerate(_samples) if s.rstrip('0123456789') in samples.index}
+            _samples = {s: i+1 
+                            for i, s in enumerate(_samples) 
+                                if s.rstrip('0123456789') in samples.index}
         if _samples:
             print('Identified %s samples to pull: %s' % (len(_samples), ', '.join(_samples)))
             for s in _samples:
@@ -89,8 +97,12 @@ def main():
 
     df.columns = [re.sub('.r0$', '', s) for s in df.columns]
     df = df[samples.index]
-    df.index = [(hugo_map.loc[x, 'HUGO'] if x in hugo_map.index else x) for x in df.index]
-    df.to_csv(''.join([os.path.splitext(params.samples)[0], '_{}.tsv'.format(params.data_type)]), sep='\t', header=True,
+    if params.translate_to_hugo:
+        df.index = [(hugo_map.loc[x, 'HUGO'] if x in hugo_map.index else x) 
+                        for x in df.index]
+    df.to_csv(''.join([os.path.splitext(params.samples)[0], '_{}.tsv'.format(params.data_type)]), 
+              sep='\t', 
+              header=True,
               index=True)
 
 
