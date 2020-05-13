@@ -7,8 +7,8 @@ uuid=`randomstr 10`
 
 module load CBC cellranger/3.0.2
 
-mkdir -p /scratch/arrao/cellranger_mkfastq_${SAMPLE}_${uuid}/working  /scratch/arrao/cellranger_mkfastq_${SAMPLE}_${uuid}/working && cd /scratch/arrao/cellranger_mkfastq_${SAMPLE}_${uuid}/working 
-trap "{ rm -rf /scratch/arrao/cellranger_mkfastq_${SAMPLE}_${uuid} ; }" EXIT
+mkdir -p /scratch/arrao/cellranger_mkfastq_${FLOWCELLID}_${uuid}/working  /scratch/arrao/cellranger_mkfastq_${FLOWCELLID}_${uuid}/working && cd /scratch/arrao/cellranger_mkfastq_${FLOWCELLID}_${uuid}/working 
+trap "{ rm -rf /scratch/arrao/cellranger_mkfastq_${FLOWCELLID}_${uuid} ; }" EXIT
 
 fastq_dir=$(dirname $(pwd))/fastqs
 
@@ -18,9 +18,18 @@ then
     lanes_argstring="--lanes=${LANES} "
 fi
 
+echo "running command: "
+echo "cellranger mkfastq --csv=${SAMPLESHEET} \
+                   --run=${BCLDIR} \
+                   --barcode-mismatches=${BARCODEMISMATCHES} \
+                   ${lanes_argstring} \
+                   --output-dir=${fastq_dir} \
+                   --localcores=${PBS_NUM_PPN} \
+                   --localmem=${MEMORY} "
+
 cellranger mkfastq --csv=${SAMPLESHEET} \
                    --run=${BCLDIR} \
-                   --barcode-mismatches=0 \
+                   --barcode-mismatches=${BARCODEMISMATCHES} \
                    ${lanes_argstring} \
                    --output-dir=${fastq_dir} \
                    --localcores=${PBS_NUM_PPN} \
@@ -39,12 +48,12 @@ do
 done
 
 echo "Filesizes for All generated fastqs:"
-find ${fastq_dir}/fastqs -name "*.gz" -exec du -h {} \; | sort -k2d
+find ${fastq_dir} -name "*.gz" -exec du -h {} \; | sort -k2d
 
 
 if [ -f ${OUTDIR} ]
 then
-    mv ${fastq_dir} ${OUTDIR}/${SAMPLE}_mkfastq_${uuid}
+    mv ${fastq_dir} ${OUTDIR}/${FLOWCELLID}_mkfastq_${uuid}
 else
     mkdir -p $(dirname ${OUTDIR})
     mv ${fastq_dir} ${OUTDIR}
