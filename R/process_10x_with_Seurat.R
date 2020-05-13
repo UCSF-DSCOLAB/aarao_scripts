@@ -1,75 +1,134 @@
 suppressPackageStartupMessages({
   library(assertthat)
   library(Seurat)
-  library(dplyr)  # inline modification of matrices
+  library(dplyr)    # inline modification of matrices
   library(cowplot)  # Pretty plots
   library(ggplot2)  # Pretty plots
-  library(grid)  #  for plotting multiple plots in one frame
-  library(gridExtra)  #  for plotting multiple plots in one frame
-  library(scales)  # to access break formatting functions
+  library(scales)   # to access break formatting functions
+  library(yaml)     # For reading cutoffs
 })
 
 # Set a seed so results are reproducible
 seed = 21212
 
-args = list(
-  DATADIR=NA,  # Directory with folders containing the outs from `cellranger count`
-  SAMPLES=NA,  # Samples to pull from the directory
-  OUT_FOLDER=getwd(),  # Where to write results
-  RSCRIPTS_DIR=paste(Sys.getenv("SCRIPTS"), "R", sep="/"),  # Where to find aux scripts
-  GENESET_DIR=paste(Sys.getenv("KLAB"), "ipi/data/refs/10x/genesets", sep="/"),  # Where to find genesets
-  SPECIES="human",  # Species to use for cell cycling and ribo
-  RERUN_STAGE=FALSE,  # Should we rerun the last run stage?
-  AB_ASSAY_NAME="IDX",  # What should the antibody capture assay (if any) be called?
-  TCRDIR=NA,  # Directory with folders containing the outs from `cellranger vdj --chain TR`
-  BCRDIR=NA  # Directory with folders containing the outs from `cellranger vdj --chain IG`
+defaultArgs = list(
+  SAMPLE_YML=list(
+    value=NA,
+    class=as.character,
+    description="Samples to pull from the directory."
+  ),
+  OUT_FOLDER=list(
+    value=getwd(),
+    class=as.character,
+    description="Where to write results."
+  ),
+  RSCRIPTS_DIR=list(
+    value=paste(Sys.getenv("SCRIPTS"), "R", sep="/"),
+    class=as.character,
+    description="Where to find aux scripts"
+  ),
+  GENESET_DIR=list(
+    value=paste(Sys.getenv("KLAB"), "ipi/data/refs/10x/genesets", sep="/"),
+    class=as.character,
+    description="Where to find genesets for ribo and cell cycling."
+  ),
+  SPECIES=list(
+    value="human",
+    class=as.character,
+    description="Species to use for cell cycling and ribo. Must be `human` or `mouse` (case-sensitive)."
+  ),
+  RERUN_STAGE=list(
+    value=FALSE,
+    class=as.logical,
+    description="Should we rerun the last run stage?"
+  ),
+  AB_ASSAY_NAME=list(
+    value="IDX",
+    class=as.character,
+    description="What should the antibody capture assay (if any) be called?"
   )
-
-argsClasses = list(
-  DATADIR=as.character,
-  SAMPLES=as.character,
-  OUT_FOLDER=as.character,
-  RSCRIPTS_DIR=as.character,
-  GENESET_DIR=as.character,
-  SPECIES=as.character,
-  RERUN_STAGE=as.logical,
-  AB_ASSAY_NAME=as.character,
-  TCRDIR=as.character,
-  BCRDIR=as.character
 )
 
-UserArgs = commandArgs(trailingOnly=TRUE)
+print_help <- function(defaultArgs) {
+  helptext = "
+This is an R Script to process a 10X samples from raw feature/barcode matrices.
 
-for (i in UserArgs){
+USAGE:
+  
+  Rscript process_10x_with_Seurat.R SAMPLE_YML=/path/to/samples.yml \
+                                    OPTIONAL_ARG1=OPTIONAL_VAL1 \
+                                    OPTIONAL_ARG2=OPTIONAL_VAL2 \
+                                              ....
+                                    OPTIONAL_ARGn=OPTIONAL_VALn \
+
+Required Arguments:
+SAMPLE_YML : "
+  cat(helptext)
+  cat(paste0(defaultArgs[['SAMPLE_YML']][['description']], 
+      "\n\n",
+      "Optional Arguments:\n"))
+  for (arg in names(defaultArgs)){
+    if (arg == 'SAMPLE_YML'){
+      next
+    }
+    cat(paste0(arg, 
+               " : ",
+               defaultArgs[[arg]][['description']],
+               " [default=",
+               defaultArgs[[arg]][['value']],
+               "]\n"))
+  }
+  quit(save="no")
+}
+
+user_args = commandArgs(trailingOnly=TRUE)
+
+args <- list()
+for (i in user_args){
   key_val = strsplit(i, split="=", fixed=TRUE)[[1]]
-  assert_that(length(key_val) == 2, msg=paste0("Invalid option `", i, "`. ",
-                                               "Args must be of the form ",
-                                               "KEY=VAL ."))
-  if (!key_val[1] %in% names(args)){
+  if (length(key_val) != 2) {
+    if (length(key_val) == 1 & key_val %in% c('-h', '--help')){
+        print_help(defaultArgs)
+      } else {
+        stop(paste0("Invalid option `", i, "`. Args must be of the form KEY=VAL."))
+      }
+  }
+  if (!key_val[1] %in% names(defaultArgs)){
     print(paste0("WARNING: Invalid key provided : ", i, ""))
     next
   } else {
-    args[[key_val[1]]] = argsClasses[[key_val[1]]](key_val[2])
+    if (key_val[1] %in% names(args)){
+      args[[key_val[1]]] = c(args[[key_val[1]]], defaultArgs[[key_val[1]]][['class']](key_val[2]))
+    } else {
+      args[[key_val[1]]] = defaultArgs[[key_val[1]]][['class']](key_val[2])
+    }
+  }
+}
+
+for (i in names(defaultArgs)) {
+  if (i == 'SAMPLE_YML') {
+    next
+  }
+  if (!i %in% names(args)){
+    args[[i]] <- defaultArgs[[i]][['value']]
   }
 }
 
 print("Running with arguments:")
-print(paste0("DATADIR       : ", args$DATADIR))
-print(paste0("SAMPLES       : ", args$SAMPLES))
-print(paste0("OUT_FOLDER    : ", args$OUT_FOLDER))
-print(paste0("RSCRIPTS_DIR  : ", args$RSCRIPTS_DIR))
-print(paste0("GENESET_DIR   : ", args$GENESET_DIR))
-print(paste0("SPECIES       : ", args$SPECIES))
-print(paste0("RERUN_STAGE   : ", args$RERUN_STAGE))
-print(paste0("AB_ASSAY_NAME : ", args$AB_ASSAY_NAME))
-print(paste0("TCRDIR        : ", args$TCRDIR))
-print(paste0("BCRDIR        : ", args$BCRDIR))
+print(paste0("SAMPLE_YML     : ", args$SAMPLE_YML))
+print(paste0("OUT_FOLDER     : ", args$OUT_FOLDER))
+print(paste0("RSCRIPTS_DIR   : ", args$RSCRIPTS_DIR))
+print(paste0("GENESET_DIR    : ", args$GENESET_DIR))
+print(paste0("SPECIES        : ", args$SPECIES))
+print(paste0("RERUN_STAGE    : ", args$RERUN_STAGE))
+print(paste0("AB_ASSAY_NAME  : ", args$AB_ASSAY_NAME))
 
-if (is.na(args$DATADIR) | is.na(args$SAMPLES)) {
-  stop(paste0("Need DATADIR=<DATADIR> and SAMPLES=<SAMPLES.list> to continue. ",
-              "Other options include OUT_FOLDER, RSCRIPTS_DIR, GENESET_DIR, ",
-              "and SPECIES."),
-       call.=FALSE)
+if (is.null(args$SAMPLE_YML)) {
+  print_help(defaultArgs)
+} else if (!file.exists(args$SAMPLE_YML)){
+  stop("SAMPLE_YML did not exist.")
+} else {
+  samples <- read_yaml(args$SAMPLE_YML)
 }
 
 species_args <- list()
@@ -90,30 +149,16 @@ if (args$SPECIES == "human"){
 if (!args$RERUN_STAGE %in% c(TRUE, FALSE)){
   stop("RERUN_STAGE must be one of `TRUE` or `FALSE`", call.=FALSE)
 }
-args$RERUN_STAGE <- as.logical(args$RERUN_STAGE)
 
-datadir = args$DATADIR
-if (args$TCRDIR == "NA"){
-  tcrdir = NA
-} else {
-  tcrdir = args$TCRDIR
-}
-
-if (args$BCRDIR == "NA"){
-  bcrdir = NA
-} else {
-  bcrdir = args$BCRDIR
-}
-
-sample_list = readLines(args$SAMPLES)
 setwd(args$OUT_FOLDER)
 
-source(paste(args$RSCRIPTS_DIR, "identify_hto_clusters.R", sep="/"))
-source(paste(args$RSCRIPTS_DIR, "generate_profile_plot.R", sep="/"))
-source(paste(args$RSCRIPTS_DIR, "demux_HTOs_by_inflexions.R", sep="/"))
-source(paste(args$RSCRIPTS_DIR, "parse_10x_vdj_outs.R", sep="/"))
-source(paste(args$RSCRIPTS_DIR, "TriplePlot.R", sep="/"))
-
+suppressPackageStartupMessages({
+  source(paste(args$RSCRIPTS_DIR, "identify_hto_clusters.R", sep="/"))
+  source(paste(args$RSCRIPTS_DIR, "generate_profile_plot.R", sep="/"))
+  source(paste(args$RSCRIPTS_DIR, "demux_HTOs_by_inflexions.R", sep="/"))
+  source(paste(args$RSCRIPTS_DIR, "parse_10x_vdj_outs.R", sep="/"))
+  source(paste(args$RSCRIPTS_DIR, "TriplePlot.R", sep="/"))
+})
 
 remove_rplots <- TRUE
 if (file.exists("Rplots.pdf")){
@@ -122,7 +167,7 @@ if (file.exists("Rplots.pdf")){
 }
 
 sobjs <- list()
-for (i in sample_list){
+for (i in names(samples)){
   # Reset the value with each sample
   rerun_stage <- args$RERUN_STAGE
   if (!file.exists(paste0(i, "/", i, "_scTransformed_processed.RData")) | rerun_stage) {
@@ -151,62 +196,87 @@ for (i in sample_list){
               rerun_stage <- FALSE
             }
             print(paste0("Generating `", i, "_raw.RData` ..."))
-            suppmsg <- assert_that(dir.exists(datadir), msg="DATADIR did not exist")
-            
-            tcr = data.frame()
-            if (!is.na(tcrdir)){
-              if(dir.exists(file.path(tcrdir, i))){
-                  print(paste0("Reading TCR information from ", file.path(tcrdir, i)))
-                  tcr <- parse_tcr_clonotype(file.path(tcrdir, i))
+            datadir = file.path(samples[[i]][['datadir']], "raw_feature_bc_matrix")
+            if (!dir.exists(datadir)) {
+              cat(paste0("Could not find a directory within `datadir` for (", i, "). ",
+                         "Tried to access (", datadir, ").\n"))
+              next
+            }
+
+            metadata <- list()
+            metadata[['tcr']] = data.frame()
+            if (!is.null(samples[[i]][['tcrdir']])){
+              tcrdir <- file.path(samples[[i]][['tcrdir']])
+              if(dir.exists(tcrdir)){
+                  cat(paste0("Reading TCR information from ", tcrdir, '\n'))
+                  metadata[['tcr']] <- parse_tcr_clonotype(tcrdir)
                 } else {
-                  print(paste0("TCRDIR was provided but could not find ",
-                               i,
-                               " in the folder. Assuming sample does not have TCR information."))
+                  cat(paste0("`tcrdir` specified for ", i, " was not found at the ",
+                             "specified location ", tcrdir, '\n'))
                 }
             }
 
-            bcr = data.frame()
-            if (!is.na(bcrdir)){
-              if(dir.exists(file.path(bcrdir, i))){
-                  print(paste0("Reading BCR information from ", file.path(bcrdir, i)))
-                  bcr <- parse_bcr_clonotype(file.path(bcrdir, i))
+            metadata[['bcr']] = data.frame()
+            if (!is.null(samples[[i]][['bcrdir']])){
+              bcrdir <- file.path(samples[[i]][['bcrdir']])
+              if(dir.exists(bcrdir)){
+                  cat(paste0("Reading BCR information from ", bcrdir, '\n'))
+                  metadata[['bcr']] <- parse_bcr_clonotype(bcrdir)
                 } else {
-                  print(paste0("BCRDIR was provided but could not find ",
-                               i,
-                               " in the folder. Assuming sample does not have BCR information."))
+                  cat(paste0("`bcrdir` specified for ", i, " was not found at the ",
+                             "specified location ", bcrdir, '\n'))
                 }
             }
 
-            metadata <- merge(tcr, bcr, by=0, all.x=TRUE, all.y=TRUE)
-            if (dim(metadata)[1] != 0){
-              # There are actual rows to this matrix
-              rownames(metadata) <- metadata$Row.names
-              metadata$Row.names <- NULL
-            } else {
-              # This is the default for metadata in a seurat object
-              metadata = NULL
+            for (md in names(samples[[i]][['metadata']])){
+              fn = file.path(samples[[i]][['metadata']][[md]])
+              if (file.exists(fn)){
+                cat(paste0('Reading metadata file: ' ,md, '\n'))
+                metadata[[md]] <- read.table(fn,
+                                             sep = "\t",
+                                             header = TRUE,
+                                             row.names=1,
+                                             stringsAsFactors = TRUE)
+                rownames(metadata[[md]]) <- gsub("-1$", '', rownames(metadata[[md]]))
+              } else {
+                cat(paste0("`metadata` file ", md, " specified for ", i, 
+                           " was not found at the specified location ", 
+                           fn, '\n'))
+              }
+            }
+
+            merged_metadata <- data.frame()
+            for (md in names(metadata)){
+              merged_metadata <- merge(merged_metadata, metadata[[md]], by=0, all.x=TRUE, all.y=TRUE)
+              rownames(merged_metadata) <- merged_metadata$Row.names
+              merged_metadata$Row.names <- NULL
+            }
+
+            if (dim(merged_metadata)[1] == 0) {
+              # Empty data frame. NULL is the default for metadata in a seurat object
+              merged_metadata = NULL
             }
 
             # Create the fodler if it doesn't exist
             dir.create(i, showWarnings=FALSE)
 
-            data <- Read10X(data.dir=paste(datadir, i, "raw_feature_bc_matrix",
+            data <- Read10X(data.dir=paste(datadir,
                             sep="/"))
             if (typeof(data) == "list"){
               sobjs[[i]] <- CreateSeuratObject(counts = data$`Gene Expression`,
-                                               project = i, 
+                                               project = i,
                                                min.cells = 3,
                                                min.features = 100,
-                                               meta.data=metadata)
+                                               meta.data=merged_metadata)
               ab_capture <- CreateAssayObject(counts = data$`Antibody Capture`)
               sobjs[[i]][[args$AB_ASSAY_NAME]] <- subset(ab_capture, cells=colnames(sobjs[[i]]))
               rm(list=c("ab_capture", "data"))
             } else {
-              sobjs[[i]] <- CreateSeuratObject(counts = data, 
+              sobjs[[i]] <- CreateSeuratObject(counts = data,
                                                project = i,
-                                               min.cells = 3, 
+                                               min.cells = 3,
                                                min.features = 100,
-                                               meta.data=metadata)
+                                               meta.data=merged_metadata)
             }
             # store mitochondrial percentage in object metadata
             sobjs[[i]] <- PercentageFeatureSet(sobjs[[i]],
@@ -241,51 +311,35 @@ for (i in sample_list){
                                                  col.name = "percent.cc")
             }
 
-            plot1 <- generate_profile_plot(sobjs[[i]],
-                                           feature1 = "nCount_RNA",
-                                           feature2 = "percent.mt",
-                                           feature1_binwidth=100,
-                                           feature2_binwidth=0.1)
-            plot2 <- generate_profile_plot(sobjs[[i]],
-                                           feature1 = "nCount_RNA",
-                                           feature2 = "percent.ribo",
-                                           feature1_binwidth=100,
-                                           feature2_binwidth=0.1)
-            plot3 <- generate_profile_plot(sobjs[[i]],
-                                           feature1 = "nCount_RNA",
-                                           feature2 = "nFeature_RNA",
-                                           feature1_binwidth=100,
-                                           feature2_binwidth=100)
+            plot_all_profiles(sobjs[[i]],
+                              out_prefix=paste0(i, "/", i, "_dualscatter_pre"),
+                              plot_extra=FALSE,
+                              ab_assay_name=args$AB_ASSAY_NAME)
 
-            plot4 <- generate_profile_plot(sobjs[[i]],
-                                           feature1 = "percent.ribo",
-                                           feature2 = "percent.mt",
-                                           feature1_binwidth=0.1,
-                                           feature2_binwidth=0.1)
-            plot5 <- generate_profile_plot(sobjs[[i]],
-                                           feature1 = "nFeature_RNA",
-                                           feature2 = "percent.mt",
-                                           feature1_binwidth=100,
-                                           feature2_binwidth=0.1)
-            plot6 <- generate_profile_plot(sobjs[[i]],
-                                           feature1 = "percent.ribo",
-                                           feature2 = "nFeature_RNA",
-                                           feature1_binwidth=0.1,
-                                           feature2_binwidth=100)
-            df <- data.frame(
-                cell_counts=seq(0, 1.01, 0.1)*dim(sobjs[[i]]@meta.data)[1],
-                percent.mt=quantile(sobjs[[i]]@meta.data[["percent.mt"]], seq(0, 1.01, 0.1)),
-                percent.ribo=quantile(sobjs[[i]]@meta.data[["percent.ribo"]], seq(0, 1.01, 0.1)),
-                nFeature_RNA=quantile(sobjs[[i]]@meta.data[["nFeature_RNA"]], seq(0, 1.01, 0.1)),
-                nCount_RNA=quantile(sobjs[[i]]@meta.data[["nCount_RNA"]], seq(0, 1.01, 0.1)),
-                row.names=seq(0, 1.01, 0.1)
-                )
-            write.table(format(df, digits=2), file=paste0(i, "/", i, "_dualscatter_pre.tsv"), row.names=T, col.names=T, quote=F, sep="\t")
+            cutoffs = list()
+            for (hl in c('high', 'low')){
+              for (feature in c('percent.mt', 'percent.ribo')){
+                cutoffs[[paste0(feature, '.', hl)]] = NA
+              }
+              for (assay in Assays(sobjs[[i]])){
+                cutoffs[[paste0('nCount_', assay, '.', hl)]] = NA
+                cutoffs[[paste0('nFeature_', assay, '.', hl)]] = NA
+              }
+            }
 
-            pdf(paste0(i, "/", i, "_dualscatter_pre.pdf"), width = 21, height = 14)
-            print(CombinePlots(plots = list(plot1, plot2, plot3,
-                                            plot4, plot5, plot6), ncol=3))
-            dev.off()
+            if ("DROPLET.TYPE" %in% colnames(sobjs[[i]]@meta.data)) {
+              # We have passed in Demuxlet/Freemuxlet info
+              plot_all_profiles(sobjs[[i]],
+                                out_prefix=paste0(i, "/", i, "_droplet_dualscatter_pre"),
+                                plot_extra=FALSE,
+                                scatter_color="DROPLET.TYPE",
+                                ab_assay_name=args$AB_ASSAY_NAME)
+              cutoffs[["DROPLET.TYPE.keep"]] = NA
+              cutoffs[["BEST.GUESS.keep"]] = NA
+            }
+
+            write_yaml(cutoffs, file=paste0(i, "/cutoffs.yml"))
+
             assign(i, sobjs[[i]])
             save(list=i, file=paste0(i, "/", i, "_raw.RData"))
             next
@@ -296,43 +350,48 @@ for (i in sample_list){
           }  # END STAGE 1
           rm(list=i)
           print(paste0("Generating `", i, "_filtered.RData` ..."))
-          if (!file.exists("cutoffs.tsv")){
-            print("Cannot continue without a cutoffs.tsv file")
+          if (!file.exists(paste0(i, "/cutoffs.yml"))) {
+            print("Cannot continue without a cutoffs.yml file in the output directory")
             next
           }
-          cutoffs <- read.table("cutoffs.tsv", sep="\t", header=TRUE, row.names=1,
-                                stringsAsFactors=FALSE)
+          cutoffs <- read_yaml(paste0(i, "/cutoffs.yml"))
           # Filter cells with high mito content (dying/dead cells)
           keep_rownames = rep(TRUE, dim(sobjs[[i]]@meta.data)[1])
           total_cells = c(dim(sobjs[[i]]@meta.data)[1], 100)
           additional_text = ""
 
-          for (filter_key in colnames(cutoffs)){
+          for (filter_key in names(cutoffs)){
             filter_feature = strsplit(filter_key, split = ".",
                                       fixed = TRUE)[[1]]
             suppmsg <- assert_that(length(filter_feature) >= 2,
-                                   msg=paste0("Column names in cutoffs.tsv must ",
-                                              "be of the form `feature.high` or ",
-                                              "`feature.low`. Got ", filter_key))
-            filter_hl <- filter_feature[length(filter_feature)]
+                                   msg=paste0("Names in cutoffs.yml must ",
+                                              "be of the form `feature.high`, ",
+                                              "`feature.low`, or `feature.keep`. ",
+                                              "Got ", filter_key))
+            filter_cat <- filter_feature[length(filter_feature)]
             filter_feature <- paste(filter_feature[1:(length(filter_feature)-1)],
                                     collapse=".")
-            suppmsg <- assert_that(filter_hl %in% c("high", "low"),
-                                   msg=paste0("Column names in cutoffs.tsv must ",
-                                              "be of the form `feature.high` or ",
-                                              "`feature.low`. Got ", filter_key))
+            suppmsg <- assert_that(filter_cat %in% c("high", "low", "keep"),
+                                   msg=paste0("Names in cutoffs.yml must ",
+                                              "be of the form `feature.high`, ",
+                                              "`feature.low`, or `feature.keep`. ",
+                                              "Got ", filter_key))
             if (!filter_feature %in% colnames(sobjs[[i]]@meta.data)){
               print(paste0("Could not find ", filter_feature, " in the metadata ",
                            "for ", i))
               next
             }
-            if(!is.na(cutoffs[i, filter_key])){
-              if (filter_hl == "high") {
-                keep_rownames <- keep_rownames & sobjs[[i]]@meta.data[[filter_feature]] <= cutoffs[i, filter_key]
-                filter_hl_text <- " > "
+            if(!is.na(cutoffs[[filter_key]])){
+              if (filter_cat == "high") {
+                keep_rownames <- keep_rownames & sobjs[[i]]@meta.data[[filter_feature]] <= cutoffs[[filter_key]]
+                filter_cat_text <- " > "
+              } else if (filter_cat == "low") {
+                keep_rownames <- keep_rownames & sobjs[[i]]@meta.data[[filter_feature]] >= cutoffs[[filter_key]]
+                filter_cat_text <- " < "
               } else {
-                keep_rownames <- keep_rownames & sobjs[[i]]@meta.data[[filter_feature]] >= cutoffs[i, filter_key]
-                filter_hl_text <- " < "
+                keep_rownames <- keep_rownames &
+                  sobjs[[i]]@meta.data[[filter_feature]] %in% strsplit(cutoffs[[filter_key]], ',')[[1]]
+                filter_cat_text <- " in "
               }
 
               print(paste0("Dropping ", additional_text,
@@ -340,8 +399,8 @@ for (i in sample_list){
                            " cells (",
                            round((total_cells[1] - sum(keep_rownames))/length(keep_rownames) * 100, 2),
                            "%) for having `", filter_feature,
-                           filter_hl_text,
-                           cutoffs[i, filter_key], "`."))
+                           filter_cat_text,
+                           cutoffs[[filter_key]], "`."))
               additional_text = "an additional "
               total_cells = c(sum(keep_rownames),
                               round(sum(keep_rownames)/length(keep_rownames) * 100, 2))
@@ -373,62 +432,22 @@ for (i in sample_list){
                        " genes for being in fewer than 3 cells"))
           sobjs[[i]] <- subset(sobjs[[i]], features = c(keep_genes, keep_features))
 
-          plot1 <- generate_profile_plot(sobjs[[i]],
-                                           feature1 = "nCount_RNA",
-                                           feature2 = "percent.mt",
-                                           feature1_binwidth=100,
-                                           feature2_binwidth=0.1)
-          plot2 <- generate_profile_plot(sobjs[[i]],
-                                         feature1 = "nCount_RNA",
-                                         feature2 = "percent.ribo",
-                                         feature1_binwidth=100,
-                                         feature2_binwidth=0.1)
-          plot3 <- generate_profile_plot(sobjs[[i]],
-                                         feature1 = "nCount_RNA",
-                                         feature2 = "nFeature_RNA",
-                                         feature1_binwidth=100,
-                                         feature2_binwidth=100)
+          plot_all_profiles(sobjs[[i]],
+                            out_prefix=paste0(i, "/", i, "_dualscatter_post"),
+                            plot_extra=TRUE,
+                            ab_assay_name=args$AB_ASSAY_NAME)
 
-          plot4 <- generate_profile_plot(sobjs[[i]],
-                                         feature1 = "percent.ribo",
-                                         feature2 = "percent.mt",
-                                         feature1_binwidth=0.1,
-                                         feature2_binwidth=0.1)
-          plot5 <- generate_profile_plot(sobjs[[i]],
-                                         feature1 = "nFeature_RNA",
-                                         feature2 = "percent.mt",
-                                         feature1_binwidth=100,
-                                         feature2_binwidth=0.1)
-          plot6 <- generate_profile_plot(sobjs[[i]],
-                                         feature1 = "percent.ribo",
-                                         feature2 = "nFeature_RNA",
-                                         feature1_binwidth=0.1,
-                                         feature2_binwidth=100)
-
-          df <- data.frame(
-              cell_counts=seq(0, 1.01, 0.1)*dim(sobjs[[i]]@meta.data)[1],
-              percent.mt=quantile(sobjs[[i]]@meta.data[["percent.mt"]], seq(0, 1.01, 0.1)),
-              percent.ribo=quantile(sobjs[[i]]@meta.data[["percent.ribo"]], seq(0, 1.01, 0.1)),
-              nFeature_RNA=quantile(sobjs[[i]]@meta.data[["nFeature_RNA"]], seq(0, 1.01, 0.1)),
-              nCount_RNA=quantile(sobjs[[i]]@meta.data[["nCount_RNA"]], seq(0, 1.01, 0.1)),
-              row.names=seq(0, 1.01, 0.1)
-              )
-          write.table(format(df, digits=2), file=paste0(i, "/", i, "_dualscatter_post.tsv"), row.names=T, col.names=T, quote=F, sep="\t")
-
-          pdf(paste0(i, "/", i, "_dualscatter_post.pdf"), onefile=TRUE, width=21, height=14)
-          print(CombinePlots(plots = list(plot1, plot2, plot3,
-                                          plot4, plot5, plot6), ncol=3))
-          print(generate_inset_histogram(sobj=sobjs[[i]], feature = "nCount_RNA",
-                                         binwidth=100))
-          print(generate_inset_histogram(sobj=sobjs[[i]], feature = "percent.mt",
-                                         binwidth=0.1,
-                                         inset_cutoff_percentile = 0.9))
-          print(generate_inset_histogram(sobj=sobjs[[i]], feature = "percent.ribo",
-                                         binwidth=0.1,
-                                         inset_cutoff_percentile = 0.9))
-          print(generate_inset_histogram(sobj=sobjs[[i]], feature = "nFeature_RNA",
-                                         binwidth=100))
-          dev.off()
+          if ("DROPLET.TYPE" %in% colnames(sobjs[[i]]@meta.data)) {
+            # We have passed in Demuxlet/Freemuxlet info
+            plot_all_profiles(sobjs[[i]],
+                              out_prefix=paste0(i, "/", i, "_droplet_dualscatter_post"),
+                              plot_extra=TRUE,
+                              scatter_color="DROPLET.TYPE",
+                              ab_assay_name=args$AB_ASSAY_NAME)
+            sobjs[[i]]@meta.data$SAMPLE.by.SNPs = as.factor(sapply(as.vector(sobjs[[i]]@meta.data$BEST.GUESS), function(x) {
+              temp <- paste(sort(unique(strsplit(x, ',')[[1]])), sep='_')
+              }))
+          }
 
           # Now that we"ve removed bogus cells, let"s normalize the counts (if present)
           if (args$AB_ASSAY_NAME %in% names(sobjs[[i]]@assays)){
@@ -519,7 +538,7 @@ for (i in sample_list){
           print(plot_grid(plotlist=demux_results[['background_plots']], ncol=2))
           dev.off()
 
-          sobjs[[i]]@meta.data$sample_name <- factor(demux_results$cell_ids,
+          sobjs[[i]]@meta.data$SAMPLE.by.ABs <- factor(demux_results$cell_ids,
                                                      levels=c(unname(sort(IDX_map$sample_name)), 'MULTIPLET', 'NEGATIVE'))
 
           drf <- data.frame(sample_name=unlist(IDX_map$sample_name[sample_names]),
@@ -533,16 +552,18 @@ for (i in sample_list){
           write.table(demux_results[["summary"]], file=paste0(i, "/IDX_summary.tsv"),
                       quote=FALSE, row.names=TRUE, col.names=TRUE, sep="\t")
 
-          Idents(sobjs[[i]]) <- sobjs[[i]]@meta.data$sample_name
+          Idents(sobjs[[i]]) <- sobjs[[i]]@meta.data$SAMPLE.by.ABs
           png(paste0(i, "/", i, '_ridgeplot.png'), width=1500,
               height=ceiling(length(sample_names)/2)*750, units = 'px')
-          print(RidgePlot(sobjs[[i]], assay=args$AB_ASSAY_NAME,
-                          features=sample_names, ncol = 2))
+          print(RidgePlot(sobjs[[i]],
+                          assay=args$AB_ASSAY_NAME,
+                          features=sample_names,
+                          ncol = 2))
           dev.off()
           sobjs[[i]] <- subset(sobjs[[i]],
-                               cells=colnames(sobjs[[i]])[!sobjs[[i]]$sample_name %in% c('NEGATIVE', 'MULTIPLET')])
-          sobjs[[i]]$sample_name <- factor(sobjs[[i]]$sample_name,
-                                           levels=unname(sort(IDX_map$sample_name)))
+                               cells=colnames(sobjs[[i]])[!sobjs[[i]]$SAMPLE.by.ABs %in% c('NEGATIVE', 'MULTIPLET')])
+          sobjs[[i]]$SAMPLE.by.ABs <- factor(sobjs[[i]]$SAMPLE.by.ABs,
+                                             levels=unname(sort(IDX_map$sample_name)))
           assign(i, sobjs[[i]])
           save(list=i, file=paste0(i, "/", i, "_filtered_singlets.RData"))
           next
@@ -562,6 +583,7 @@ for (i in sample_list){
       print(paste0("Generating `", i, "_scTransformed.RData` ..."))
       sobjs[[i]] <- SCTransform(sobjs[[i]],
                                 vars.to.regress = species_args$vars_to_regress,
+                                return.only.var.genes = FALSE,
                                 verbose = FALSE)
 
       # Get the Principal components for the object
@@ -611,10 +633,17 @@ for (i in sample_list){
     print(DimPlot(sobjs[[i]], label=TRUE))
     dev.off()
 
-    if (args$AB_ASSAY_NAME %in% names(sobjs[[i]]@assays)){
+    if ("SAMPLE.by.SNPs" %in% colnames(sobjs[[i]]@meta.data)) {
+      # We have passed in Demuxlet/Freemuxlet info
+      pdf(paste0(i, "/", i, "_samples_by_SNPs_umap.pdf"))
+      print(DimPlot(sobjs[[i]], group.by="SAMPLE.by.SNPs"))
+      dev.off()
+    }
+
+    if ("SAMPLE.by.ABs" %in% colnames(sobjs[[i]]@meta.data)){
       # View the clusters UMAP
-      pdf(paste0(i, "/", i, "_samples_umap.pdf"))
-      print(DimPlot(sobjs[[i]], group.by="sample_name"))
+      pdf(paste0(i, "/", i, "_samples_by_ABs_umap.pdf"))
+      print(DimPlot(sobjs[[i]], group.by="SAMPLE.by.ABs"))
       dev.off()
     }
 
