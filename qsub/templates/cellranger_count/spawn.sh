@@ -62,7 +62,7 @@ if [[ ! "${RECEIVED_NAMED_ARGS[@]}" =~ "CHEMISTRY" ]]
 then
     CHEMISTRY="auto"
 else
-    allowed=('auto' 'threeprime' 'fiveprime''SC3Pv1' 'SC3Pv2' 'SC3Pv3' 'SC5P-PE' 'SC5P-R2')
+    allowed=('auto' 'threeprime' 'fiveprime' 'SC3Pv1' 'SC3Pv2' 'SC3Pv3' 'SC5P-PE' 'SC5P-R2')
     if [[ ! "${allowed[@]}" =~ "${CHEMISTRY}" ]]
     then
         echo -e "\nERROR: CHEMISTRY must be one of \n\t${allowed[@]}\n"

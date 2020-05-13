@@ -10,9 +10,18 @@ trap "{ rm -rf /scratch/arrao/cellranger_count_${SAMPLE} ; }" EXIT
 featureref_argstring=" "
 if grep -q "Antibody Capture" ${LIBRARIES_CSV}
 then
-    featureref_argstring="--feature-ref ${FEATURE_REF} "
+    featureref_argstring="--feature-ref ${FEATUREREF} "
 fi
 
+echo "running command: "
+echo "cellranger count --id=${SAMPLE} \
+                 ${featureref_argstring} \
+                 --libraries ${LIBRARIES_CSV} \
+                 --chemistry=${CHEMISTRY} \
+                 --transcriptome=${TRANSCRIPTOME} \
+                 --localcores=${PBS_NUM_PPN} \
+                 --localmem=${MEMORY}"
+                 
 cellranger count --id=${SAMPLE} \
                  ${featureref_argstring} \
                  --libraries ${LIBRARIES_CSV} \
