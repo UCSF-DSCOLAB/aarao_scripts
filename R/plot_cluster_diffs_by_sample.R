@@ -32,7 +32,7 @@ plot_cluster_diffs_by_sample <- function(sobj, ann.col='SAMPLE.by.SNPs',
   ##             ann_fractions_per_ident_hist : A histogram of
   ##             ident_fractions_per_ann_hist : A histogram of 
   ##             ident_fractions_per_ann_line : A line plot of         
-  ##         fraction_table: A DataFrame with counts and percentages of idents per ann and vice 
+  ##         fraction_table: A tibble with counts and percentages of idents per ann and vice 
   ##                         versa
   ##
 
@@ -40,7 +40,7 @@ plot_cluster_diffs_by_sample <- function(sobj, ann.col='SAMPLE.by.SNPs',
   suppressWarnings({
     if (any(!is.na(as.numeric(annotations)))){
       cat(paste0('Not all annotations are strictly non-numeric. Prefixing with `', ann.col.prefix, 
-                 '`.'))
+                 '`.\n'))
       sobj@meta.data[[ann.col]] <- gsub('^', ann.col.prefix, 
                                         as.vector(sobj@meta.data[[ann.col]]))
       annotations <- gsub('^', ann.col.prefix, as.vector(annotations))
@@ -51,7 +51,7 @@ plot_cluster_diffs_by_sample <- function(sobj, ann.col='SAMPLE.by.SNPs',
   suppressWarnings({
     if (any(!is.na(as.numeric(identities)))){
       cat(paste0('Not all identities are strictly non-numeric. Prefixing with `', ident.col.prefix, 
-                 '`.'))
+                 '`.\n'))
       sobj@meta.data[[ident.col]] <- gsub('^', ident.col.prefix, 
                                           as.vector(sobj@meta.data[[ident.col]]))
       identities <- gsub('^', ident.col.prefix, as.vector(identities))
@@ -78,15 +78,15 @@ plot_cluster_diffs_by_sample <- function(sobj, ann.col='SAMPLE.by.SNPs',
   outs[['fraction_table']] <- sobj@meta.data %>% 
       count((!!sym(ident.col)), (!!sym(ann.col))) %>%
       group_by((!!sym(ident.col))) %>%
-      mutate(cluster_size=sum(n)) %>% 
-      mutate(fraction_of_cluster = n/cluster_size) %>%
+      mutate(ident_size=sum(n)) %>% 
+      mutate(fraction_of_ident = n/ident_size) %>%
       group_by((!!sym(ann.col))) %>%
-      mutate(sample_size=sum(n)) %>% 
-      mutate(fraction_of_sample = n/sample_size) %>%
-      arrange(-cluster_size, .by_group = TRUE) %>%
+      mutate(ann_size=sum(n)) %>% 
+      mutate(fraction_of_ann = n/ann_size) %>%
+      arrange(-ident_size, .by_group = TRUE) %>%
       mutate(idx=row_number())
   outs[['plots']][['ann_fractions_per_ident_hist']] <- ggplot(outs[['fraction_table']], 
-                                                                   aes_string(y="fraction_of_cluster", 
+                                                                   aes_string(y="fraction_of_ident", 
                                                                               x=ident.col,
                                                                               fill=ann.col)) +
                                                               geom_col(position = "dodge") +
@@ -94,11 +94,11 @@ plot_cluster_diffs_by_sample <- function(sobj, ann.col='SAMPLE.by.SNPs',
   
   # convenience
   temp <- outs[['fraction_table']]
-  outs[['plots']][['ident_fractions_per_ann_hist']] <- ggplot(temp, aes_string(y="fraction_of_sample", x=ann.col, fill=ident.col)) +
+  outs[['plots']][['ident_fractions_per_ann_hist']] <- ggplot(temp, aes_string(y="fraction_of_ann", x=ann.col, fill=ident.col)) +
                                                               geom_col(position = "dodge") +
                                                               theme(legend.key.size = unit(0.3, "cm"))
 
-  outs[['plots']][['ident_fractions_per_ann_line']] <- ggplot(temp, aes_string(x="idx", y="fraction_of_sample", col=ann.col)) +
+  outs[['plots']][['ident_fractions_per_ann_line']] <- ggplot(temp, aes_string(x="idx", y="fraction_of_ann", col=ann.col)) +
                                                               geom_line() + 
                                                               geom_point(shape=1, size=3) +
                                                               #scale_color_brewer(palette=palette)
