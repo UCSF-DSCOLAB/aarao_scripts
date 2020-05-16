@@ -14,16 +14,25 @@ suppressPackageStartupMessages({
   library(RColorBrewer)
 })
 
-# poor vs rich
+# Remember, this is poor vs rich: So
 # logFc < 0 -> poor/rich < 0 -> upregulated in poor
 # logFc > 0 -> poor/rich > 0 -> downregulated in poor
 
+# TODO replace hugo and ensembl with args$SYMBOL_COL and args$GENE_ID_COL
+
+# Colors used by hex
+# #2B2D2F = Dark Grey
+# #A9A9A9 = A lighter dark grey
+# #FF0000 = Red
+# #FFFFFF = White
+# #000000 = Black
 
 # Function definitions
 
 args = list(
   COUNTS_TSV=NA,  # Directory with folders containing fastqs
   CLASSES_TSV=NA,  # Metadata for the samples
+  GROUP_COL='group', # Column to group all data by
   GENE_TO_SYMBOL_TSV=NA,
   OUT_FOLDER=".",  # Where to write results
   MODEL_COVARIATE=c(),
@@ -114,27 +123,32 @@ counts <- read.table(args$COUNTS_TSV,
 cat ("Done\n")
 
 cat ("Reading classes.....")
-groups <- read.table(args$CLASSES_TSV, 
-                     sep='\t', 
-                     header=1, 
-                     row.names=1, 
-                     stringsAsFactors = T,
-                     na.strings = 'unknown')
+classes <- read.table(args$CLASSES_TSV, 
+                      sep='\t', 
+                      header=1, 
+                      row.names=1, 
+                      stringsAsFactors = T,
+                      na.strings = 'unknown')
 cat ("Done\n")
 
 if (is.null(args$GENE_TO_SYMBOL_TSV)){
   cat ('Getting Gene Symbols for all genes')
+  mart <- setup_biomart(biomart="ensembl", 
+                        dataset = "hsapiens_gene_ensembl")
+  
   ensembl_to_symbol <- data.frame(ensembl=rownames(counts), stringsAsFactors = F)
-  ensembl_to_symbol <- ensg_to_hugo(human_genes, fill = F)
-  assign('ensembl_to_symbol', ensembl_to_symbol)
+  ensembl_to_symbol <- ensg_to_hugo(mart, ensembl_to_symbol, fill = F)
 } else {
   cat (paste0('Reading Gene Symbols  for all genes from ', args$GENE_TO_SYMBOL_TSV, '\n'))
   ensembl_to_symbol <- read.table(args$GENE_TO_SYMBOL_TSV,  
                                   sep='\t',
                                   header=1,
                                   stringsAsFactors = FALSE)
-  assign('ensembl_to_symbol', ensembl_to_symbol)
+  if (!all(c('hugo', 'ensembl') %in% colnames(ensembl_to_symbol))){
+    stop("Can't use provided GENE_TO_SYMBOL_TSV since it does not contain the columns `hugo` and `ensembl`")
+  }
 }
+assign('ensembl_to_symbol', ensembl_to_symbol)
 
 add_gene_symbol <- function(df, df_ensembl_col='ensembl') {
   if (is.null(ensembl_to_symbol)){
@@ -164,24 +178,28 @@ if (!is.null(args$ANNOT_COLS_TSV)){
                            stringsAsFactors = FALSE, 
                            quote="")
   cat ("Done\n")
+  if (args$GROUP_COL %in% colnames(annot_cols)){
+    cat(paste0('Dropping ', args$GROUP_COL, ' from ANNOT_COLS.tsv as it is the main grouping var'))
+    annot_cols[[args$GROUP_COL]] <- NULL
+  }
 } else {
   annot_cols <- data.frame()
 }
 
 
-if (is.numeric(groups$plate)){
-  cat(paste0('`plate` in <GROUPS.TSV> cannot be numerical. Renaming to ',
+if (is.numeric(classes$plate)){
+  cat(paste0('`plate` in <CLASSES.TSV> cannot be numerical. Renaming to ',
              'prefix with `plate` (i.e. `1` becomes `plate1`). This ',
              'is the expected format.\n'))
-  groups$plate <- paste0('plate', groups$plate)
+  classes$plate <- paste0('plate', classes$plate)
 }
 
-if (!'group' %in% colnames(groups)) {
-    stop("<GROUPS.TSV> must have a column named group", call.=FALSE)
-} else if (is.numeric(groups$group)){
-  cat(paste0('`group` in <GROUPS.TSV> cannot be numerical. Renaming to ',
+if (!args$GROUP_COL %in% colnames(classes)) {
+    stop(paste0("<CLASSES.TSV> must have a column named ", args$GROUP_COL), call.=FALSE)
+} else if (is.numeric(classes[[args$GROUP_COL]])){
+  cat(paste0('`', args$GROUP_COL, '` in <CLASSES.TSV> cannot be numerical. Renaming to ',
              'prefix with `g` (i.e. `1` becomes `g1`).\n'))
-  groups$group <- as.factor(paste0('g', groups$group))
+  classes[[args$GROUP_COL]] <- as.factor(paste0('g', classes[[args$GROUP_COL]]))
 }
 
 if (args$RUN_STRING_DE|args$RUN_STRING_PCA){
@@ -198,85 +216,94 @@ if (args$RUN_DAVID_DE|args$RUN_DAVID_PCA){
 }
 
 
-if (length(rownames(groups)) != length(colnames(counts)) ||
-        !all(rownames(groups) %in% colnames(counts)) ||
-        !all(colnames(counts) %in% rownames(groups))) {
-    warning("<COUNTS.TSV> and <GROUPS.TSV> do not have the same columns. Continuing with the intersection", call.=FALSE)
-    common_cols <- intersect(colnames(counts), rownames(groups))
+if (length(rownames(classes)) != length(colnames(counts)) ||
+        !all(rownames(classes) %in% colnames(counts)) ||
+        !all(colnames(counts) %in% rownames(classes))) {
+    warning("<COUNTS.TSV> and <CLASSES.TSV> do not have the same columns. Continuing with the intersection", call.=FALSE)
+    common_cols <- intersect(colnames(counts), rownames(classes))
 } else {
-    common_cols <- rownames(groups)
+    common_cols <- rownames(classes)
 }
 
-groups <- groups[common_cols,, drop=F]
-groups <- groups[order(groups$group, rownames(groups)),, drop=F]
-counts <- counts[, rownames(groups)]
+classes <- classes[common_cols,, drop=F]
+classes <- classes[order(classes[[args$GROUP_COL]], rownames(classes)),, drop=F]
+counts <- counts[, rownames(classes)]
 
 
-if (!all(rownames(annot_cols) %in% colnames(groups))) {
-  nc <- rownames(annot_cols)[!rownames(annot_cols) %in% colnames(groups)]
+if (!all(rownames(annot_cols) %in% colnames(classes))) {
+  nc <- rownames(annot_cols)[!rownames(annot_cols) %in% colnames(classes)]
   warning(paste0("The following fields in <ANNOT_COLS.TSV> are not in ",
-                 "<GROUPS.TSV>: ", 
+                 "<CLASSES.TSV>: ", 
                  paste(nc, collapse=", "),
                  " ....Discarding missing columns"),
                  call.=FALSE)
-  cc <- rownames(annot_cols)[rownames(annot_cols) %in% colnames(groups)]
+  cc <- rownames(annot_cols)[rownames(annot_cols) %in% colnames(classes)]
   annot_cols <- annot_cols[cc, , drop=F]
 }
 
-# Add IPI batch annotations into the groups dataframe
-fixed_levels <- list()
-fixed_levels[['sequencer']] <- c('hiseq', 'novaseq')
-groups$sequencer <- factor(x=sapply(groups$plate, function(x){if (as.numeric(gsub('plate', '', x)) > 25) 'novaseq' else 'hiseq'}), levels=fixed_levels[['sequencer']])
-fixed_levels[['washes']] <- c('extraWash', 'noExtraWash')
-groups$washes <- factor(x=sapply(groups$plate, function(x){if (as.numeric(gsub('plate', '', x)) > 8) 'extraWash' else 'noExtraWash'}), levels=fixed_levels[['washes']])
+# Add IPI batch annotations into the classes dataframe
+annotations_added <- c()
+if ('plate' %in% colnames(classes)){
+  fixed_levels <- list()
+  # Sequencer
+  fixed_levels[['sequencer']] <- c('hiseq', 'novaseq')
+  classes$sequencer <- factor(x=sapply(classes$plate, function(x){if (as.numeric(gsub('plate', '', x)) > 25) 'novaseq' else 'hiseq'}), levels=fixed_levels[['sequencer']])
+  # Washes
+  fixed_levels[['washes']] <- c('extraWash', 'noExtraWash')
+  classes$washes <- factor(x=sapply(classes$plate, function(x){if (as.numeric(gsub('plate', '', x)) > 8) 'extraWash' else 'noExtraWash'}), levels=fixed_levels[['washes']])
+  # Fix Plate to be ordered correctly as a factor
+  fixed_levels[['plate']] <- as.vector(levels(classes$plate))
+  fixed_levels[['plate']] <- fixed_levels[['plate']][order(as.numeric(gsub("plate", "", fixed_levels[['plate']])))]
+  classes$plate <- factor(as.vector(classes$plate), levels = fixed_levels[['plate']])
+  
+  annotations_added <- c('sequencer', 'washes')
 
-# Add proper levels to EHK and plates
-groups$EHK <- factor(as.vector(groups$EHK),
-                     levels = as.vector(c(1:10)))
+  cat('\nThe plate distribution across plates is seen to be:\n')
+  print(table(classes[,c('sequencer', 'plate')]))
+  cat('\nThe wash distribution across plates is seen to be:\n')
+  print(table(classes[,c('washes', 'plate')]))
+  
+}
 
-fixed_levels[['plate']] <- as.vector(levels(groups$plate))
-fixed_levels[['plate']] <- fixed_levels[['plate']][order(as.numeric(gsub("plate", "", fixed_levels[['plate']])))]
-groups$plate <- factor(as.vector(groups$plate), levels = fixed_levels[['plate']])
-
-cat('\nThe plate distribution across plates is seen to be:\n')
-print(table(groups[,c('sequencer', 'plate')]))
-cat('\nThe wash distribution across plates is seen to be:\n')
-print(table(groups[,c('washes', 'plate')]))
+if ('EHK' %in% colnames(classes)){
+  # Add proper levels to EHK and plates
+  classes$EHK <- factor(as.vector(classes$EHK),
+                        levels = as.vector(c(1:10)))
+}
 
 # See https://support.bioconductor.org/p/36029/#100297
 # See https://support.bioconductor.org/p/66251/#66252
 # This is how Gordon Smyth suggests you handle batch effect in the DE
-design_formula = '~0+group'
-factor_covariates = c('group')
+design_formula = paste0('~0+', args$GROUP_COL)
+factor_covariates = c(args$GROUP_COL)
 
 for (m in  args$MODEL_COVARIATE) {
-  if (!m%in%colnames(groups)){
-    cat(paste0('Cannot add ', m, ' to the model since it is not in the groups dataframe.\n'))
+  if (!m%in%colnames(classes)){
+    cat(paste0('Cannot add ', m, ' to the model since it is not in <CLASSES.TSV>.\n'))
     next
   }
   
-  if (length(unique(groups[[m]])) > 1) {
-    if (is.factor(groups[[m]])){
+  if (length(unique(classes[[m]])) > 1) {
+    if (is.factor(classes[[m]])){
       factor_covariates = c(factor_covariates, m)
     }
     design_formula <- paste0(design_formula, '+', m)
-    useSequencerToBC <- TRUE
     cat(paste0('Added ', m, ' to the model.\n'))
   } else {
     cat(paste0('Covariate ', m, ' is constant across all samples. Skipping.\n'))
   }
 }
 
-design <- model.matrix(as.formula(design_formula), data=groups) #limma
+design <- model.matrix(as.formula(design_formula), data=classes) #limma
 
-for (l in levels(groups$group)) {
-  colnames(design) <- gsub(paste0("^", "group", l, "$"), l, colnames(design))
+for (l in levels(classes[[args$GROUP_COL]])) {
+  colnames(design) <- gsub(paste0("^", args$GROUP_COL, l, "$"), l, colnames(design))
 }
 cat("\nUsing design Model: \n")
 print(design)
 
 logcpm_matrices <- list()
-dge_list <- DGEList(counts=counts, group=groups$group)
+dge_list <- DGEList(counts=counts, group=classes[[args$GROUP_COL]])
 logcpm_matrices[['unnormalized']] <- cpm(dge_list, log=TRUE)
 cat ("Made DGElist.\n")
 dge_list <- dge_list[ rowSums(dge_list$counts) > 60, keep.lib.size=FALSE ]
@@ -291,7 +318,7 @@ cat ("Limma fit done.\n")
 i=1
 conts <- c()
 cnames <- c()
-combs <- combn(levels(groups$group), 2, simplify=F)
+combs <- combn(levels(classes[[args$GROUP_COL]]), 2, simplify=F)
 for (comb in combs){
     conts[i] = paste(comb, collapse=" - ")
     cnames[i] = paste(comb, collapse="_vs_")
@@ -307,13 +334,15 @@ fit2 <- contrasts.fit(fit, cont_matrix)  #limma
 fit2 <- eBayes(fit2, robust=TRUE)  #limma
 cat ("Fit2 done.\n")
 
-
 # Setup the colors for the plots
-cols <- list(
-  group = brewer.pal(max(length(levels(groups$group)), 3), "Accent"),
-  washes = c('black', 'lightgrey'),
-  sequencer = c('black', 'lightgrey')
-)
+cols <- list()
+cols[[args$GROUP_COL]] <- brewer.pal(max(length(levels(classes[[args$GROUP_COL]])), 3), "Accent")
+for (l in annotations_added) {
+  # Currently all our added annotations are boolean so grey/red works
+  cols[[l]] <- c('#A9A9A9',     # darkgrey 
+                 '#FF0000'       # red
+                 )
+}
 
 numeric_cols <- list()
 
@@ -321,10 +350,18 @@ for (annot in rownames(annot_cols)) {
   if (annot %in% names(cols)){
     next
   }
-  
+  add_UK = FALSE
   if (annot_cols[annot, 'type'] == "factor"){
-    groups[[annot]] <- as.factor(groups[[annot]])
-    num_vals <- length(levels(groups[[annot]]))
+    if (any(is.na(classes[[annot]]))){
+      classes[[annot]] <- factor(classes[[annot]], 
+                                 levels=c(levels(as.factor(classes[[annot]])), 'UNKNOWN'))
+      classes[[annot]][is.na(classes[[annot]])] <- 'UNKNOWN'
+      num_vals <- length(levels(classes[[annot]])) - 1
+      add_UK = TRUE
+    } else {
+      classes[[annot]] <- as.factor(classes[[annot]])  
+      num_vals <- length(levels(classes[[annot]]))
+    }
   } else if (annot_cols[annot, 'type'] == "numeric") {
     if (!annot_cols[annot, 'cmap'] %in% rownames(brewer.pal.info)) {
       stop(paste0('Currently only color palettes from brewer are allowed for numerical annotations',
@@ -338,21 +375,27 @@ for (annot in rownames(annot_cols)) {
       numeric_cols[[annot]][["low"]] <- 0
       numeric_cols[[annot]][["high"]] <- 100
     } else {
-      numeric_cols[[annot]][["low"]] <- min(groups[[annot]], na.rm = T)
-      numeric_cols[[annot]][["high"]] <- max(groups[[annot]], na.rm = T)
+      numeric_cols[[annot]][["low"]] <- min(classes[[annot]], na.rm = T)
+      numeric_cols[[annot]][["high"]] <- max(classes[[annot]], na.rm = T)
     }
     num_vals <- 10
-  } else{
+  } else {
     assert_that(FALSE, msg="Cannot handle non-factor/numeric types for annot right now.")
   }
   
   if(annot_cols[annot, 'cmap'] %in% rownames(brewer.pal.info)) {
-    cols[[annot]] = brewer.pal(max(num_vals, 3), annot_cols[annot, 'cmap'])  
+    cols[[annot]] = brewer.pal(max(num_vals, 3), annot_cols[annot, 'cmap'])
+    if (num_vals < length(cols[[annot]])){
+      cols[[annot]] <- cols[[annot]][1:num_vals]
+    }
   } else {
     # This assumes the user has passed in a function that can be evaluated to
     # generate a palette
     pal = eval(parse(text=annot_cols[annot, 'cmap']))
     cols[[annot]] = pal(num_vals)
+  }
+  if (add_UK){
+    cols[[annot]] <- c(cols[[annot]], '#000000')
   }
 } # for (annot in rownames(annot_cols))
 
@@ -360,44 +403,79 @@ labs <- c()
 labs.colnames <- c()
 
 legend.text <- c()
+legend.text.col <- c()
+legend.text.font <- c()
 legend.fill <- c()
 
-for (annot_group in names(cols)) {
-  if (annot_group %in% names(numeric_cols)) {
-    pct <- (numeric_cols[[annot_group]][['high']]-numeric_cols[[annot_group]][['low']])/10
-    vals <- sapply(groups[[annot_group]], function(x){min((x-numeric_cols[[annot_group]][['low']])%/%pct+1, 10)})
-    vals <- cols[[annot_group]][vals]
-    vals[is.na(vals)] <- 'black'
+
+for (annot in names(cols)) {
+  if (annot %in% names(numeric_cols)) {
+    pct <- (numeric_cols[[annot]][['high']]-numeric_cols[[annot]][['low']])/10
+    vals <- sapply(classes[[annot]], function(x){min((x-numeric_cols[[annot]][['low']])%/%pct+1, 10)})
+    vals <- cols[[annot]][vals]
+    vals[is.na(vals)] <- '#000000'
     labs <- cbind(labs, vals)
-    labs.colnames <- c(labs.colnames, annot_group)
+    labs.colnames <- c(labs.colnames, annot)
     
-    legend.text <- c(legend.text, c("NA", "low", "medium", "high"), "")
-    legend.fill <- c(legend.fill, 'grey', cols[[annot_group]][c(1,5, 10)], 'white')
-    
+    legend.text <- c(legend.text, 
+                     annot,
+                     "NA", 
+                     c("low", "medium", "high"))
+    legend.fill <- c(legend.fill, 
+                     '#FFFFFF',
+                     '#000000', 
+                     cols[[annot]][c(1,5, 10)])
+    legend.text.col <- c(legend.text.col,
+                         '#000000',
+                         '#2B2D2F',
+                         rep('#2B2D2F', 3)
+                         )
+    legend.text.font <- c(legend.text.font,
+                          4,
+                          1,
+                          rep(1, 3)
+                          )
   } else {
-    labs <- cbind(labs, cols[[annot_group]][groups[[annot_group]]])
-    labs.colnames <- c(labs.colnames, annot_group)
+    labs <- cbind(labs, cols[[annot]][classes[[annot]]])
+    labs.colnames <- c(labs.colnames, 
+                       annot)
   
-    legend.text <- c(legend.text, levels(groups[[annot_group]]), "")
+    legend.text <- c(legend.text, 
+                     annot,
+                     levels(classes[[annot]]))
+    legend.text.col <- c(legend.text.col, 
+                         "#000000",
+                         rep('#2B2D2F', length(levels(classes[[annot]]))))
+    legend.text.font <- c(legend.text.font, 
+                          4,
+                          rep(1, length(levels(classes[[annot]]))))
     
-    if (annot_group %in% c('plate', 'washes', 'sequencer')) {
+    if (annot %in% c('plate', 'washes', 'sequencer')) {
       # We specifically use the levels since we've manually set them in the order we care
-      legend.fill <- c(legend.fill, cols[[annot_group]][factor(levels(groups[[annot_group]]), levels=fixed_levels[[annot_group]])], 'white')
-    } else if (annot_group == 'EHK') {
+      legend.fill <- c(legend.fill, 
+                       '#FFFFFF',
+                       cols[[annot]][factor(levels(classes[[annot]]), 
+                                            levels=fixed_levels[[annot]])])
+      
+    } else if (annot == 'EHK') {
       # Has to be numeric for this to be correct)
-      legend.fill <- c(legend.fill, cols[[annot_group]][as.numeric(levels(groups[[annot_group]]))], 'white')
+      legend.fill <- c(legend.fill, 
+                       '#FFFFFF',
+                       cols[[annot]][as.numeric(levels(classes[[annot]]))])
     } else {
-      legend.fill <- c(legend.fill, cols[[annot_group]][as.factor(levels(groups[[annot_group]]))], 'white')  
+      legend.fill <- c(legend.fill, 
+                       '#FFFFFF',
+                       # Need to do the levels hack so the levels don't get resorted
+                       cols[[annot]][factor(levels(classes[[annot]]), levels=as.vector(levels(classes[[annot]])))])
     }
-  } # if (annot_group %in% names(numeric_cols)) / else
-} # for (annot_group in names(cols)) 
+  } # if (annot %in% names(numeric_cols)) / else
+} # for (annot in names(cols)) 
 
 colnames(labs) <- labs.colnames
-rownames(labs) <- rownames(groups)
+rownames(labs) <- rownames(classes)
+cat ("Setup all color palettes.\n")
 
 hclust.ward = function(d) hclust(d,method="ward.D2")
-
-cat ("Setup all color palettes.\n")
 
 for (nm in names(logcpm_matrices)) {
   nmlcpm <- logcpm_matrices[[nm]]
@@ -406,17 +484,20 @@ for (nm in names(logcpm_matrices)) {
   pcs <- prcomp(t(nmlcpm))
   ap <- list()
   for (annot_name in names(cols)) {
-    if (annot_name == 'group'){
-      ap[[annot_name]] <- autoplot(pcs, data=groups, shape=annot_name, col=annot_name, size=5, alpha=0.75) + 
-        geom_text_repel(aes(label=rownames(groups))) + 
+    if (annot_name == args$GROUP_COL){
+      ap[[annot_name]] <- autoplot(pcs, data=classes, shape=annot_name, col=annot_name, size=5, alpha=0.75) + 
+        geom_text_repel(aes(label=rownames(classes))) + 
         scale_color_manual(values=cols[[annot_name]]) +
         theme_bw()
     } else if (annot_name %in% names(numeric_cols)){
-      ap[[annot_name]] <- autoplot(pcs, data=groups, shape='group', col=annot_name, size=5, alpha=0.75) + 
-        scale_color_distiller(palette=numeric_cols[[annot_name]][["palette"]], limits = c(numeric_cols[[annot_name]][["low"]], numeric_cols[[annot_name]][["high"]])) +
+      ap[[annot_name]] <- autoplot(pcs, data=classes, shape=args$GROUP_COL, col=annot_name, size=5, alpha=0.75) + 
+        scale_color_distiller(palette=numeric_cols[[annot_name]][["palette"]], 
+                              limits = c(numeric_cols[[annot_name]][["low"]], 
+                                         numeric_cols[[annot_name]][["high"]]),
+                              na.value='#000000') +
         theme_bw()
     } else {
-      ap[[annot_name]] <- autoplot(pcs, data=groups, shape='group', col=annot_name, size=5, alpha=0.75) + 
+      ap[[annot_name]] <- autoplot(pcs, data=classes, shape=args$GROUP_COL, col=annot_name, size=5, alpha=0.75) + 
         scale_color_manual(values=cols[[annot_name]]) +
         theme_bw()
     }
@@ -427,11 +508,14 @@ for (nm in names(logcpm_matrices)) {
   dev.off()
   
   x <- as.data.frame(pcs$x)
-  x$group = groups$group
-  y <- melt(x, id.vars = 'group', variable.name = 'PC')
+  x[[args$GROUP_COL]] = classes[[args$GROUP_COL]]
+  y <- melt(x, id.vars = args$GROUP_COL, variable.name = 'PC')
   
   png(filename=paste(args$OUT_FOLDER, paste('voom_', gsub('.{6}$', '', nm), '_pca_boxplots.png',sep=''), sep='/'), width = 30, height =  ceiling(length(ap)/3) *10 , units = "in", res = 150)
-  print(ggplot(y, aes(x=group, y=value)) + geom_boxplot() + stat_compare_means(method = "t.test") + facet_wrap(~PC, ncol=5))
+  print(ggplot(y, aes_string(x=args$GROUP_COL, y="value", fill=args$GROUP_COL)) + 
+          geom_boxplot() + 
+          stat_compare_means(method = "t.test") + 
+          facet_wrap(~PC, ncol=5))
   dev.off()
   
   for (pc in c(1, 2)) {
@@ -513,7 +597,9 @@ for (nm in names(logcpm_matrices)) {
            bty="n",
            y.intersp = 0.7,
            cex=0.7,
-           ncol=1)
+           ncol=1, 
+           text.col = legend.text.col,
+           text.font = legend.text.font)
     dev.off()
   } # for (mvc in args$MOST_VARIABLE_CUTOFF)
 } # for (nm in names(logcpm_matrices))
@@ -592,7 +678,10 @@ for (cname in cnames) {
            border=FALSE,
            bty="n",
            y.intersp = 0.7,
-           cex=0.7)
+           cex=0.7,
+           ncol=1, 
+           text.col = legend.text.col,
+           text.font = legend.text.font)
     dev.off()
   } # for (nm in names(logcpm_matrices))
 } # for (cname in cnames)
