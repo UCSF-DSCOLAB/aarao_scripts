@@ -96,7 +96,8 @@ plot_cluster_diffs_by_sample <- function(sobj, ann.col='SAMPLE.by.SNPs',
   temp <- outs[['fraction_table']]
   outs[['plots']][['ident_fractions_per_ann_hist']] <- ggplot(temp, aes_string(y="fraction_of_ann", x=ann.col, fill=ident.col)) +
                                                               geom_col(position = "dodge") +
-                                                              theme(legend.key.size = unit(0.3, "cm"))
+                                                              theme(legend.key.size = unit(0.3, "cm"), 
+                                                                    axis.text.x=element_text(angle=90, hjust = 1))
 
   outs[['plots']][['ident_fractions_per_ann_line']] <- ggplot(temp, aes_string(x="idx", y="fraction_of_ann", col=ann.col)) +
                                                               geom_line() + 

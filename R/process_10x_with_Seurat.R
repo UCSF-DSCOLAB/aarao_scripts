@@ -238,6 +238,9 @@ for (i in names(samples)){
                                              row.names=1,
                                              stringsAsFactors = TRUE)
                 rownames(metadata[[md]]) <- gsub("-1$", '', rownames(metadata[[md]]))
+                if (dim(metadata[[md]])[2] < 1){
+                  stop(paste0('Something wrong with metadata file ', md, '. Found 0 columns... Is the file a tsv?'))
+                }
               } else {
                 cat(paste0("`metadata` file ", md, " specified for ", i, 
                            " was not found at the specified location ", 
@@ -260,8 +263,11 @@ for (i in names(samples)){
             # Create the fodler if it doesn't exist
             dir.create(i, showWarnings=FALSE)
 
-            data <- Read10X(data.dir=paste(datadir,
-                            sep="/"))
+            data <- Read10X(data.dir=datadir)
+            # newer versions of Seurat
+            if (endsWith(x=colnames(data)[1], "-1")){
+              rownames(merged_metadata) <- paste0(rownames(merged_metadata), '-1')
+            }
             if (typeof(data) == "list"){
               sobjs[[i]] <- CreateSeuratObject(counts = data$`Gene Expression`,
                                                project = i,
@@ -445,7 +451,7 @@ for (i in names(samples)){
                               scatter_color="DROPLET.TYPE",
                               ab_assay_name=args$AB_ASSAY_NAME)
             sobjs[[i]]@meta.data$SAMPLE.by.SNPs = as.factor(sapply(as.vector(sobjs[[i]]@meta.data$BEST.GUESS), function(x) {
-              temp <- paste(sort(unique(strsplit(x, ',')[[1]])), sep='_')
+              temp <- paste(sort(unique(strsplit(x, ',')[[1]])), collapse='_')
               }))
           }
 
