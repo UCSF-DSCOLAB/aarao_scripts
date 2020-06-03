@@ -17,15 +17,14 @@ gatk --java-options "-Djava.io.tmpdir=/scratch/arrao/${SAMPLE}_javatmp -Xmx${MEM
     --reference ${GENOMEREF} \
     --input ${SAMFILE} \
     --known-sites ${DBSNP} \
-    --output recal_data.table
+    --output ${out_base}_recal_data.table
 
 gatk --java-options "-Djava.io.tmpdir=/scratch/arrao/${SAMPLE}_javatmp -Xmx${MEMORY}g" \
     ApplyBQSR \
     --create-output-bam-index true \
     --reference ${GENOMEREF} \
     --input ${SAMFILE} \
-    --bqsr-recal-file recal_data.table \
+    --bqsr-recal-file ${out_base}_recal_data.table \
     --output ${out_base}.bam
 
-mv /scratch/arrao/BQSR_${SAMPLE}/recal_data.table ${out_dir}/
 mv /scratch/arrao/BQSR_${SAMPLE}/${out_base}* ${out_dir}/

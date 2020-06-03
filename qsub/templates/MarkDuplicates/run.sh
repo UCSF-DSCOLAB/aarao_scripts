@@ -17,7 +17,7 @@ java -Xmx${MEMORY}g  \
     MarkDuplicates \
     VALIDATION_STRINGENCY=SILENT \
     TMP_DIR=/scratch/arrao/${SAMPLE}_picardtemp \
-    REMOVE_DUPLICATES=false \
+    REMOVE_DUPLICATES=${REMOVE_DUPLICATES} \
     REFERENCE_SEQUENCE=${GENOMEREF} \
     ASSUME_SORTED=true \
     CREATE_INDEX=true \
