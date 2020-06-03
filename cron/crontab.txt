@@ -1,1 +1,3 @@
-0 3 * * * bash /data/shared/krummellab/arrao/scripts/cron/move_logs.sh
+0 3 * * * bash /krummellab/data1/arrao/scripts/cron/move_logs.sh
+#*/15 * * * * bash /krummellab/data1/arrao/scripts/cron/check_job_completion.sh
+0 3 * * * bash /krummellab/data1/arrao/scripts/cron/auto_identify_ihg_libs.sh
