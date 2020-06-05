@@ -219,13 +219,13 @@ heatmap.3 <- function(x,
             breaks <- seq(min(x, na.rm = na.rm), max(x, na.rm = na.rm),
                 length = breaks)
         else {
-            if (missing(cbar_extreme) || is.null(cbar_extreme)){
-              extreme <- max(abs(x), na.rm = TRUE)
-              breaks <- seq(-extreme, extreme, length = breaks)
-            } else {
-              extreme <- abs(cbar_extreme)
-              breaks <- seq(-extreme, extreme, length = breaks)
+            extreme <- max(abs(x), na.rm = TRUE)
+            if (!missing(cbar_extreme) && !is.null(cbar_extreme)){
+               if (extreme > cbar_extreme) {
+                 extreme = cbar_extreme
+               }
             }
+            breaks <- seq(-extreme, extreme, length = breaks)
         }
     }
     nbr <- length(breaks)

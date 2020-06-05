@@ -3,7 +3,7 @@ library(biomaRt)
 setup_biomart  <- function(biomart, dataset, num_attempts=10){
   attempts = 0
   while (attempts < num_attempts) {
-    human <- NULL
+    mart <- NULL
     try(mart <- useMart(biomart = biomart, 
                         dataset = dataset),
         silent = TRUE
@@ -49,7 +49,7 @@ iterative_getBM <- function(mart, attributes, filters, values, uniqueRows = T, m
   for (i in 1:length(values)){
     cat(paste0('Processing chunk ', i, '\n'))
     temp_values <- values[[i]]
-    temp <- getBM_or_bust(mart = human,
+    temp <- getBM_or_bust(mart = mart,
                           attributes = attributes, 
                           filters = filters,
                           values = temp_values,
@@ -80,7 +80,7 @@ ensg_to_hugo <- function(mart,
     stop("fill must be one of TRUE or FALSE")
   }
 
-  ensembl <- iterative_getBM(mart = human,
+  ensembl <- iterative_getBM(mart = mart,
                              attributes = c("hgnc_symbol","ensembl_gene_id"), 
                              filters = "ensembl_gene_id", 
                              values = input_df[, ensembl_col, drop=T], 

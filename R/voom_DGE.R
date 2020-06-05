@@ -32,6 +32,7 @@ suppressPackageStartupMessages({
 args = list(
   COUNTS_TSV=NA,  # Directory with folders containing fastqs
   CLASSES_TSV=NA,  # Metadata for the samples
+  COUNTS_TYPE='counts', # counts or tpm
   GROUP_COL='group', # Column to group all data by
   GENE_TO_SYMBOL_TSV=NA,
   OUT_FOLDER=".",  # Where to write results
@@ -44,12 +45,17 @@ args = list(
   RUN_DAVID_DE=TRUE,
   RUN_DAVID_PCA=TRUE,
   DAVID_AUTH_EMAIL=NA,
-  MOST_VARIABLE_CUTOFF=c(200, 500, 1000)
-  )
+  MOST_VARIABLE_CUTOFF=c(200, 500, 1000),
+  MOST_VARIABLE_METHOD="var",
+  FDR_THRESHOLD=0.05,
+  GENESETS=c()
+)
 
 argsClasses = list(
   COUNTS_TSV=as.character,
   CLASSES_TSV=as.character,
+  COUNTS_TYPE=as.character,
+  GROUP_COL=as.character,
   GENE_TO_SYMBOL_TSV=as.character,
   OUT_FOLDER=as.character,
   MODEL_COVARIATE=as.character,
@@ -61,12 +67,16 @@ argsClasses = list(
   RUN_DAVID_DE=as.logical,
   RUN_DAVID_PCA=as.logical,
   DAVID_AUTH_EMAIL=as.character,
-  MOST_VARIABLE_CUTOFF=as.numeric
+  MOST_VARIABLE_CUTOFF=as.numeric,
+  MOST_VARIABLE_METHOD=as.character,
+  FDR_THRESHOLD=as.numeric,
+  GENESETS=as.character
 )
 
 user_args <- commandArgs(trailingOnly=TRUE)
-#user_args = strsplit("COUNTS_TSV=/Users/arjunarkalrao/projects/gyn_indication/poor_rich_dge/05_04_2020/live/live_valid_samples_counts.tsv CLASSES_TSV=/Users/arjunarkalrao/projects/gyn_indication/poor_rich_dge/05_04_2020/live/live_valid_samples.tsv OUT_FOLDER=/Users/arjunarkalrao/projects/gyn_indication/poor_rich_dge/05_04_2020/live/ ANNOT_COLS_TSV=/Users/arjunarkalrao/projects/gyn_indication/poor_rich_dge/05_04_2020/important_fields.tsv STRING_FOLDER=/Users/arjunarkalrao/important_data/databases/string RSCRIPTS_DIR=/Users/arjunarkalrao/scripts_bk/R RUN_STRING_DE=FALSE RUN_STRING_PCA=FALSE MOST_VARIABLE_CUTOFF=200 MOST_VARIABLE_CUTOFF=500 MOST_VARIABLE_CUTOFF=1000 DAVID_AUTH_EMAIL=arjunarkal.rao@ucsf.edu", " ")[[1]]
-
+# user_args = strsplit("COUNTS_TSV=/Users/arjunarkalrao/projects/gyn_indication/poor_rich_dge/05_04_2020/live/live_valid_samples_counts.tsv CLASSES_TSV=/Users/arjunarkalrao/projects/gyn_indication/poor_rich_dge/05_04_2020/live/live_valid_samples.tsv OUT_FOLDER=/Users/arjunarkalrao/projects/gyn_indication/poor_rich_dge/05_04_2020/live/ ANNOT_COLS_TSV=/Users/arjunarkalrao/projects/gyn_indication/poor_rich_dge/05_04_2020/important_fields.tsv STRING_FOLDER=/Users/arjunarkalrao/important_data/databases/string RSCRIPTS_DIR=/Users/arjunarkalrao/scripts_bk/R RUN_STRING_DE=FALSE RUN_STRING_PCA=FALSE MOST_VARIABLE_CUTOFF=200 MOST_VARIABLE_CUTOFF=500 MOST_VARIABLE_CUTOFF=1000 DAVID_AUTH_EMAIL=arjunarkal.rao@ucsf.edu", " ")[[1]]
+# user_args = strsplit("COUNTS_TSV=/Users/arjunarkalrao/projects/gyn_indication/poor_rich_dge/05_04_2020/tcell/tcell_valid_samples_counts.tsv CLASSES_TSV=/Users/arjunarkalrao/projects/gyn_indication/poor_rich_dge/05_04_2020/tcell/tcell_valid_samples.tsv OUT_FOLDER=/Users/arjunarkalrao/projects/gyn_indication/poor_rich_dge/05_04_2020/tcell/ ANNOT_COLS_TSV=/Users/arjunarkalrao/projects/gyn_indication/poor_rich_dge/05_04_2020/important_fields.tsv STRING_FOLDER=/Users/arjunarkalrao/important_data/databases/string RSCRIPTS_DIR=/Users/arjunarkalrao/scripts_bk/R RUN_STRING_DE=FALSE RUN_STRING_PCA=FALSE MOST_VARIABLE_CUTOFF=200 MOST_VARIABLE_CUTOFF=500 MOST_VARIABLE_CUTOFF=1000 DAVID_AUTH_EMAIL=arjunarkal.rao@ucsf.edu", " ")[[1]]
+# user_args <- strsplit("COUNTS_TSV=/Users/arjunarkalrao/projects/lung_indication/risk_dge/05_27_2019/live/live_valid_samples_counts.tsv CLASSES_TSV=/Users/arjunarkalrao/projects/lung_indication/risk_dge/05_27_2019/live/live_valid_samples.tsv GENE_TO_SYMBOL_TSV=/Users/arjunarkalrao/projects/lung_indication/risk_dge/05_27_2019/live/ensembl_to_symbol.tsv GROUP_COL=risk_group OUT_FOLDER=/Users/arjunarkalrao/projects/lung_indication/risk_dge/05_27_2019/live/ STRING_FOLDER=/Users/arjunarkalrao/important_data/databases/string RSCRIPTS_DIR=/Users/arjunarkalrao/scripts_bk/R MOST_VARIABLE_CUTOFF=200 MOST_VARIABLE_CUTOFF=500 MOST_VARIABLE_CUTOFF=1000 RUN_STRING_DE=FALSE RUN_STRING_PCA=FALSE RUN_DAVID_PCA=FALSE RUN_DAVID_DE=FALSE DAVID_AUTH_EMAIL=arjunarkal.rao@ucsf.edu", " ")[[1]]
 
 parsed_user_args <- c()
 for (i in user_args){
@@ -88,20 +98,29 @@ for (i in user_args){
 }
 
 cat("Running with arguments:\n")
-cat(paste0("COUNTS_TSV : ", args$COUNTS_TSV, " (", mode(args$COUNTS_TSV), ")\n"))
-cat(paste0("CLASSES_TSV : ", args$CLASSES_TSV, " (", mode(args$CLASSES_TSV), ")\n"))
-cat(paste0("GENE_TO_SYMBOL_TSV : ", args$GENE_TO_SYMBOL_TSV, " (", mode(args$GENE_TO_SYMBOL_TSV), ")\n"))
-cat(paste0("OUT_FOLDER  : ", args$OUT_FOLDER, " (", mode(args$OUT_FOLDER), ")\n"))
-cat(paste("MODEL_COVARIATE : ", args$MODEL_COVARIATE, " (", mode(args$MODEL_COVARIATE), ")\n", sep='', collapse=''))
-cat(paste0("ANNOT_COLS_TSV : ", args$ANNOT_COLS_TSV, " (", mode(args$ANNOT_COLS_TSV), ")\n"))
-cat(paste0("STRING_FOLDER : ", args$STRING_FOLDER, " (", mode(args$STRING_FOLDER), ")\n"))
-cat(paste0("RSCRIPTS_DIR : ", args$RSCRIPTS_DIR, " (", mode(args$RSCRIPTS_DIR), ")\n"))
-cat(paste0("RUN_STRING_DE : ", args$RUN_STRING_DE, " (", mode(args$RUN_STRING_DE), ")\n"))
-cat(paste0("RUN_STRING_PCA : ", args$RUN_STRING_PCA, " (", mode(args$RUN_STRING_PCA), ")\n"))
-cat(paste0("RUN_DAVID_DE : ", args$RUN_DAVID_DE, " (", mode(args$RUN_DAVID_DE), ")\n"))
-cat(paste0("RUN_DAVID_PCA : ", args$RUN_DAVID_PCA, " (", mode(args$RUN_DAVID_PCA), ")\n"))
-cat(paste0("DAVID_AUTH_EMAIL : ", args$DAVID_AUTH_EMAIL, " (", mode(args$DAVID_AUTH_EMAIL), ")\n"))
+cat(paste0("COUNTS_TSV          : ", args$COUNTS_TSV, " (", mode(args$COUNTS_TSV), ")\n"))
+cat(paste0("CLASSES_TSV         : ", args$CLASSES_TSV, " (", mode(args$CLASSES_TSV), ")\n"))
+cat(paste0("COUNTS_TYPE         : ", args$COUNTS_TYPE, " (", mode(args$COUNTS_TYPE), ")\n"))
+cat(paste0("GROUP_COL           : ", args$GROUP_COL, " (", mode(args$GROUP_COL), ")\n"))
+cat(paste0("GENE_TO_SYMBOL_TSV  : ", args$GENE_TO_SYMBOL_TSV, " (", mode(args$GENE_TO_SYMBOL_TSV), ")\n"))
+cat(paste0("OUT_FOLDER          : ", args$OUT_FOLDER, " (", mode(args$OUT_FOLDER), ")\n"))
+cat(paste("MODEL_COVARIATE      : ", args$MODEL_COVARIATE, " (", mode(args$MODEL_COVARIATE), ")\n", sep='', collapse=''))
+cat(paste0("ANNOT_COLS_TSV      : ", args$ANNOT_COLS_TSV, " (", mode(args$ANNOT_COLS_TSV), ")\n"))
+cat(paste0("STRING_FOLDER       : ", args$STRING_FOLDER, " (", mode(args$STRING_FOLDER), ")\n"))
+cat(paste0("RSCRIPTS_DIR        : ", args$RSCRIPTS_DIR, " (", mode(args$RSCRIPTS_DIR), ")\n"))
+cat(paste0("RUN_STRING_DE       : ", args$RUN_STRING_DE, " (", mode(args$RUN_STRING_DE), ")\n"))
+cat(paste0("RUN_STRING_PCA      : ", args$RUN_STRING_PCA, " (", mode(args$RUN_STRING_PCA), ")\n"))
+cat(paste0("RUN_DAVID_DE        : ", args$RUN_DAVID_DE, " (", mode(args$RUN_DAVID_DE), ")\n"))
+cat(paste0("RUN_DAVID_PCA       : ", args$RUN_DAVID_PCA, " (", mode(args$RUN_DAVID_PCA), ")\n"))
+cat(paste0("DAVID_AUTH_EMAIL    : ", args$DAVID_AUTH_EMAIL, " (", mode(args$DAVID_AUTH_EMAIL), ")\n"))
 cat(paste("MOST_VARIABLE_CUTOFF : ", args$MOST_VARIABLE_CUTOFF, " (", mode(args$MOST_VARIABLE_CUTOFF), ")\n", sep='', collapse=''))
+cat(paste("MOST_VARIABLE_METHOD : ", args$MOST_VARIABLE_METHOD, " (", mode(args$MOST_VARIABLE_METHOD), ")\n", sep='', collapse=''))
+cat(paste0("FDR_THRESHOLD       : ", args$FDR_THRESHOLD, " (", mode(args$FDR_THRESHOLD), ")\n"))
+cat(paste("GENESETS             : ", args$GENESETS, " (", mode(args$GENESETS), ")\n", sep='', collapse=''))
+
+if (endsWith(args$OUT_FOLDER, '/')) {
+  args$OUT_FOLDER = gsub('/$', '', args$OUT_FOLDER)
+}
 
 if (is.na(args$COUNTS_TSV) | is.na(args$CLASSES_TSV)) {
   stop(paste0("Need COUNTS_TSV=<COUNTS.tsv> and CLASSES_TSV=<CLASSES.tsv> to continue. ",
@@ -109,6 +128,12 @@ if (is.na(args$COUNTS_TSV) | is.na(args$CLASSES_TSV)) {
               "RSCRIPTS_DIR, and STRING_FOLDER ."),
        call.=FALSE)
 }
+
+if (! all(args$MOST_VARIABLE_METHOD %in% c('var', 'IQR', 'IQV', 'CQV'))){
+  stop("MOST_VARIABLE_METHOD must be one (or more) of `var` (standard variance), `IQR` (Inter Quartile Vange), `IQV` (Inter Quartile variance), or `CQV` (Coefficient of Quartile Variance).",
+       call.=FALSE)
+}
+
 
 source(paste0(args$RSCRIPTS_DIR, '/coolmap2_heatmap3.R'))
 source(paste0(args$RSCRIPTS_DIR, '/biomart_operations.R'))
@@ -131,13 +156,13 @@ classes <- read.table(args$CLASSES_TSV,
                       na.strings = 'unknown')
 cat ("Done\n")
 
-if (is.null(args$GENE_TO_SYMBOL_TSV)){
+if (is.na(args$GENE_TO_SYMBOL_TSV)){
   cat ('Getting Gene Symbols for all genes')
   mart <- setup_biomart(biomart="ensembl", 
                         dataset = "hsapiens_gene_ensembl")
   
   ensembl_to_symbol <- data.frame(ensembl=rownames(counts), stringsAsFactors = F)
-  ensembl_to_symbol <- ensg_to_hugo(mart, ensembl_to_symbol, fill = F)
+  ensembl_to_symbol <- ensg_to_hugo(mart, ensembl_to_symbol, fill = T)
 } else {
   cat (paste0('Reading Gene Symbols  for all genes from ', args$GENE_TO_SYMBOL_TSV, '\n'))
   ensembl_to_symbol <- read.table(args$GENE_TO_SYMBOL_TSV,  
@@ -178,9 +203,9 @@ if (!is.null(args$ANNOT_COLS_TSV)){
                            stringsAsFactors = FALSE, 
                            quote="")
   cat ("Done\n")
-  if (args$GROUP_COL %in% colnames(annot_cols)){
-    cat(paste0('Dropping ', args$GROUP_COL, ' from ANNOT_COLS.tsv as it is the main grouping var'))
-    annot_cols[[args$GROUP_COL]] <- NULL
+  if (args$GROUP_COL %in% rownames(annot_cols)){
+    cat(paste0('Dropping ', args$GROUP_COL, ' from ANNOT_COLS.tsv as it is the main grouping var.\n'))
+    annot_cols <- annot_cols[rownames(annot_cols)!=args$GROUP_COL, ]
   }
 } else {
   annot_cols <- data.frame()
@@ -195,7 +220,7 @@ if (is.numeric(classes$plate)){
 }
 
 if (!args$GROUP_COL %in% colnames(classes)) {
-    stop(paste0("<CLASSES.TSV> must have a column named ", args$GROUP_COL), call.=FALSE)
+  stop(paste0("<CLASSES.TSV> must have a column named ", args$GROUP_COL), call.=FALSE)
 } else if (is.numeric(classes[[args$GROUP_COL]])){
   cat(paste0('`', args$GROUP_COL, '` in <CLASSES.TSV> cannot be numerical. Renaming to ',
              'prefix with `g` (i.e. `1` becomes `g1`).\n'))
@@ -215,14 +240,43 @@ if (args$RUN_DAVID_DE|args$RUN_DAVID_PCA){
   cat ("Done\n")
 }
 
+cat('The distribution of the grouping variable is\n')
+print(table(classes[[args$GROUP_COL]]))
+
+# Drop any items in classes if the grouping var is NA
+if (any(is.na(classes[[args$GROUP_COL]]))) {
+  drop_rownames = rownames(classes)[is.na(classes[[args$GROUP_COL]])]
+  warning(paste0("The following samples in <CLASSES.TSV> are NA in the ",
+                 "grouping variable `", args$GROUP_COL, "`: ", 
+                 paste(drop_rownames, collapse=", "),
+                 " ....Discarding NA group samples"),
+          call.=FALSE)
+  classes <- classes[!rownames(classes) %in% drop_rownames, ]
+}
+
+# Drop any singleton samples in classes
+if (any(table(classes[[args$GROUP_COL]])<2)) {
+  drop_cats <- names(table(classes[[args$GROUP_COL]])[table(classes[[args$GROUP_COL]])<2])
+  drop_rownames = rownames(classes)[classes[[args$GROUP_COL]]%in%drop_cats]
+  warning(paste0("The following samples in <CLASSES.TSV> are singletons in the ",
+                 "grouping variable `", args$GROUP_COL, "`: ", 
+                 paste(drop_rownames, collapse=", "),
+                 " ....Discarding NA group samples"),
+          call.=FALSE)
+  classes <- classes[!rownames(classes) %in% drop_rownames, ]
+}
+classes[[args$GROUP_COL]] <- as.factor(as.vector(classes[[args$GROUP_COL]]))
+
+cat('The final distribution of the grouping variable is\n')
+print(table(classes[[args$GROUP_COL]]))
 
 if (length(rownames(classes)) != length(colnames(counts)) ||
-        !all(rownames(classes) %in% colnames(counts)) ||
-        !all(colnames(counts) %in% rownames(classes))) {
-    warning("<COUNTS.TSV> and <CLASSES.TSV> do not have the same columns. Continuing with the intersection", call.=FALSE)
-    common_cols <- intersect(colnames(counts), rownames(classes))
+    !all(rownames(classes) %in% colnames(counts)) ||
+    !all(colnames(counts) %in% rownames(classes))) {
+  warning("<COUNTS.TSV> and <CLASSES.TSV> do not have the same columns. Continuing with the intersection", call.=FALSE)
+  common_cols <- intersect(colnames(counts), rownames(classes))
 } else {
-    common_cols <- rownames(classes)
+  common_cols <- rownames(classes)
 }
 
 classes <- classes[common_cols,, drop=F]
@@ -236,7 +290,7 @@ if (!all(rownames(annot_cols) %in% colnames(classes))) {
                  "<CLASSES.TSV>: ", 
                  paste(nc, collapse=", "),
                  " ....Discarding missing columns"),
-                 call.=FALSE)
+          call.=FALSE)
   cc <- rownames(annot_cols)[rownames(annot_cols) %in% colnames(classes)]
   annot_cols <- annot_cols[cc, , drop=F]
 }
@@ -257,7 +311,7 @@ if ('plate' %in% colnames(classes)){
   classes$plate <- factor(as.vector(classes$plate), levels = fixed_levels[['plate']])
   
   annotations_added <- c('sequencer', 'washes')
-
+  
   cat('\nThe plate distribution across plates is seen to be:\n')
   print(table(classes[,c('sequencer', 'plate')]))
   cat('\nThe wash distribution across plates is seen to be:\n')
@@ -300,16 +354,47 @@ for (l in levels(classes[[args$GROUP_COL]])) {
   colnames(design) <- gsub(paste0("^", args$GROUP_COL, l, "$"), l, colnames(design))
 }
 cat("\nUsing design Model: \n")
-print(design)
+print(as.data.frame(design))
+
+if (args$COUNTS_TYPE == 'tpm') {
+  unnorm_string = "unnormalized"
+  prior_count = 1e-6
+  norm_technique = 'upperquartile'
+  min_count = 2
+  min_total_count = 5
+  trend = TRUE
+} else if (args$COUNTS_TYPE == 'counts') {
+  unnorm_string = "unnormalized"
+  prior_count = 2
+  norm_technique = 'TMM'
+  min_count = 10
+  min_total_count = 15
+  trend = FALSE
+} else {
+  cat(paste0('WARNING: Received count type: ', args$COUNTS_TYPE, '.\n',
+             'Assuming data was prenormalized. Setting trend=FALSE and skipping normalization.\n'))
+  norm_technique = 'skip'
+  unnorm_string = args$COUNTS_TYPE
+  trend = FALSE
+}
 
 logcpm_matrices <- list()
 dge_list <- DGEList(counts=counts, group=classes[[args$GROUP_COL]])
-logcpm_matrices[['unnormalized']] <- cpm(dge_list, log=TRUE)
 cat ("Made DGElist.\n")
-dge_list <- dge_list[ rowSums(dge_list$counts) > 60, keep.lib.size=FALSE ]
-dge_list <- calcNormFactors(dge_list, method="TMM")
-logcpm_matrices[['TMMnormalized']] <- cpm(dge_list, log=TRUE)
-cat ("Normalization done.\n")
+if (norm_technique != 'skip'){
+  keep_genes <- filterByExpr(dge_list, 
+                             group = dge_list$samples$group,
+                             min.count=min_count,
+                             min.total.count=min_total_count)
+  dge_list <- dge_list[keep_genes, , keep.lib.size=FALSE ]
+  logcpm_matrices[[unnorm_string]] <- cpm(dge_list, log=TRUE, prior.count=prior_count)
+  dge_list <- calcNormFactors(dge_list, method=norm_technique)
+  logcpm_matrices[[paste0(norm_technique, 'normalized')]] <- cpm(dge_list, log=TRUE, prior.count=prior_count)
+  cat ("Normalization done.\n")
+} else {
+  logcpm_matrices[[unnorm_string]] <- cpm(dge_list, log=TRUE, prior.count=prior_count)  
+}
+
 
 v <- voom(dge_list, design)
 fit <- lmFit(v, design)
@@ -320,18 +405,27 @@ conts <- c()
 cnames <- c()
 combs <- combn(levels(classes[[args$GROUP_COL]]), 2, simplify=F)
 for (comb in combs){
-    conts[i] = paste(comb, collapse=" - ")
-    cnames[i] = paste(comb, collapse="_vs_")
-    i <- i+1
+  conts[i] = paste(comb, collapse=" - ")
+  cnames[i] = paste(comb, collapse="_vs_")
+  i <- i+1
 }
 
-cont_matrix <- makeContrasts(contrasts=conts, levels = design )#limma
+if (length(levels(classes[[args$GROUP_COL]])) > 2){
+  lvls = levels(classes[[args$GROUP_COL]])
+  for (l in lvls){
+    conts[i] = paste(c(l, lvls[lvls!=l]), collapse=' - ')
+    cnames[i] = paste0(l, '_vs_rest')
+    i <- i+1
+  }
+}
+
+cont_matrix <- makeContrasts(contrasts=conts, levels = design ) #limma
 colnames(cont_matrix) <- cnames
 cat ("Using contrast matrix:\n")  #limma
 print(cont_matrix)
 
 fit2 <- contrasts.fit(fit, cont_matrix)  #limma
-fit2 <- eBayes(fit2, robust=TRUE)  #limma
+fit2 <- eBayes(fit2, robust=TRUE, trend=trend)  #limma
 cat ("Fit2 done.\n")
 
 # Setup the colors for the plots
@@ -341,7 +435,7 @@ for (l in annotations_added) {
   # Currently all our added annotations are boolean so grey/red works
   cols[[l]] <- c('#A9A9A9',     # darkgrey 
                  '#FF0000'       # red
-                 )
+  )
 }
 
 numeric_cols <- list()
@@ -429,17 +523,17 @@ for (annot in names(cols)) {
                          '#000000',
                          '#2B2D2F',
                          rep('#2B2D2F', 3)
-                         )
+    )
     legend.text.font <- c(legend.text.font,
                           4,
                           1,
                           rep(1, 3)
-                          )
+    )
   } else {
     labs <- cbind(labs, cols[[annot]][classes[[annot]]])
     labs.colnames <- c(labs.colnames, 
                        annot)
-  
+    
     legend.text <- c(legend.text, 
                      annot,
                      levels(classes[[annot]]))
@@ -478,6 +572,10 @@ cat ("Setup all color palettes.\n")
 hclust.ward = function(d) hclust(d,method="ward.D2")
 
 for (nm in names(logcpm_matrices)) {
+  prefix_nm=file.path(args$OUT_FOLDER, args$GROUP_COL, nm)
+  prefix_pca=file.path(prefix_nm, 'pca')
+  dir.create(prefix_pca, showWarnings = FALSE, recursive = TRUE)
+  
   nmlcpm <- logcpm_matrices[[nm]]
   
   cat(paste0('Plotting raw pca with ', nm, ' cpms\n'))
@@ -503,7 +601,7 @@ for (nm in names(logcpm_matrices)) {
     }
   }
   
-  png(filename=paste(args$OUT_FOLDER, paste('voom_', gsub('.{6}$', '', nm), '_pca.png',sep=''), sep='/'), width = 30, height =  ceiling(length(ap)/3) *10 , units = "in", res = 150)
+  png(filename=file.path(prefix_pca, paste('voom_', gsub('.{6}$', '', nm), '_pca.png',sep='')), width = 30, height =  ceiling(length(ap)/3) *10 , units = "in", res = 150)
   grid.arrange(grobs=ap, ncol = 3)
   dev.off()
   
@@ -511,7 +609,7 @@ for (nm in names(logcpm_matrices)) {
   x[[args$GROUP_COL]] = classes[[args$GROUP_COL]]
   y <- melt(x, id.vars = args$GROUP_COL, variable.name = 'PC')
   
-  png(filename=paste(args$OUT_FOLDER, paste('voom_', gsub('.{6}$', '', nm), '_pca_boxplots.png',sep=''), sep='/'), width = 30, height =  ceiling(length(ap)/3) *10 , units = "in", res = 150)
+  png(filename=file.path(prefix_pca, paste('voom_', gsub('.{6}$', '', nm), '_pca_boxplots.png',sep='')), width = 30, height =  ceiling(length(ap)/3) *10 , units = "in", res = 150)
   print(ggplot(y, aes_string(x=args$GROUP_COL, y="value", fill=args$GROUP_COL)) + 
           geom_boxplot() + 
           stat_compare_means(method = "t.test") + 
@@ -519,6 +617,9 @@ for (nm in names(logcpm_matrices)) {
   dev.off()
   
   for (pc in c(1, 2)) {
+    prefix_pc_x=file.path(prefix_pca, paste0('pc_', pc))
+    dir.create(prefix_pc_x, showWarnings = FALSE)
+    
     best_correlation <- data.frame(Sr=sort(apply(nmlcpm, 1, function(x) {cor(x, pcs$x[,pc], method="spearman")})))
     best_correlation$ensembl <- rownames(best_correlation)
     best_correlation$trend <- ifelse(best_correlation$Sr>0, 'POS', 'NEG')
@@ -528,18 +629,18 @@ for (nm in names(logcpm_matrices)) {
     best_correlation <- add_gene_symbol(best_correlation)
     best_correlation <- best_correlation[, c('hugo', 'ensembl', 'Sr', 'Sr_sqr', 'trend')]
     write.table(best_correlation, 
-                file=paste0(args$OUT_FOLDER, 
-                            '/voom_', gsub('.{6}$', '', nm), '_PC', pc, '_correlating_genes.tsv'),
+                file=file.path(prefix_pc_x, 
+                               paste0('voom_', gsub('.{6}$', '', nm), '_PC', pc, '_correlating_genes.tsv')),
                 sep='\t', quote=F, row.names = F, col.names = T)
-
+    
     top_rotations <- data.frame(weight=round(pcs$rotation[, pc][order(-abs(pcs$rotation[, pc]))][c(1:200)], 4))
     top_rotations$ensembl <- rownames(top_rotations)
     top_rotations <- add_gene_symbol(top_rotations)
     top_rotations$trend <- ifelse(top_rotations$weight>0, 'POS', 'NEG')
     top_rotations <- top_rotations[, c("ensembl", "hugo", "weight", "trend")]
     write.table(top_rotations, 
-                file=paste0(args$OUT_FOLDER, 
-                            '/voom_', gsub('.{6}$', '', nm), '_PC', pc, '_top200_weights.tsv'),
+                file=file.path(prefix_pc_x, 
+                               paste0('voom_', gsub('.{6}$', '', nm), '_PC', pc, '_top200_weights.tsv')),
                 row.names = F, 
                 col.names=T, 
                 sep="\t", 
@@ -547,49 +648,141 @@ for (nm in names(logcpm_matrices)) {
     
     if (args$RUN_STRING_PCA){
       cat(paste0('Running STRING on pc ', pc, '\n'))
-      try(run_string(paste(args$OUT_FOLDER, paste0('voom_', gsub('.{6}$', '', nm), '_PC', pc), sep="/"),
-                           top_table=top_rotations, 
-                           string_db=string_db, 
-                           usesig=FALSE,
-                           logFcColStr="weight",
-                           trend_col="weightage",
-                           trend_classes=c('POS', 'NEG')))
+      try(run_string(file.path(prefix_pc_x, paste0('voom_', gsub('.{6}$', '', nm), '_PC', pc)),
+                     top_table=top_rotations, 
+                     string_db=string_db, 
+                     usesig=FALSE,
+                     logFcColStr="weight",
+                     trend_col="weightage",
+                     trend_classes=c('POS', 'NEG')))
     }
     if (args$RUN_DAVID_PCA){
       cat(paste0('Running DAVID on pc ', pc, '\n'))
-      try(run_david(paste(args$OUT_FOLDER, paste0('voom_', gsub('.{6}$', '', nm), '_PC', pc), sep="/"),
-                   top_table=top_rotations, 
-                   david_db=david_db, 
-                   genelist_prefix = paste0(nm, '_', pc),
-                   logFcColStr="weight",
-                   trend_col="weightage",
-                   trend_classes=c('POS', 'NEG')))
+      try(run_david(file.path(prefix_pc_x, paste0('voom_', gsub('.{6}$', '', nm), '_PC', pc)),
+                    top_table=top_rotations, 
+                    david_db=david_db, 
+                    genelist_prefix = paste0(nm, '_', pc),
+                    logFcColStr="weight",
+                    trend_col="weightage",
+                    trend_classes=c('POS', 'NEG')))
     }
   } 
   
-  for (mvc in args$MOST_VARIABLE_CUTOFF) {
-    cat(paste0('Plotting unbiased heatmap with ', nm, ' cpms across ', mvc, ' variable genes.\n'))
-    top_most_variable_genes = rownames(fit2$coefficients)[order(-fit2$sigma)][c(0:mvc)]
-    png(filename=paste(args$OUT_FOLDER, paste('voom_', 
-                                              gsub('.{6}$', '', nm), 
-                                              '_unbiased_top', 
-                                              mvc, 
-                                              '_heatmap.png',
-                                              sep=''), 
-                       sep='/'), 
-        width = 20, 
-        height = 15, units = "in", res = 150)
-    temp_rownames <- ensembl_to_symbol[ensembl_to_symbol$ensembl %in% top_most_variable_genes, ]
+  for (mvm in args$MOST_VARIABLE_METHOD) {
+    if (mvm == 'var') {
+      ranked_variance = rownames(fit2$coefficients)[order(-fit2$sigma)][1:max(args$MOST_VARIABLE_CUTOFF)]  
+    } else if (mvm == 'IQR') {
+      cat('Calculating IQRs\n')
+      iqr = apply(nmlcpm, 1, IQR)
+      ranked_variance = names(sort(iqr, decreasing = T)[1:max(args$MOST_VARIABLE_CUTOFF)])
+    } else if (mvm == 'CQV') {
+      cat('Calculating CQVs\n')
+      cqv = apply(nmlcpm, 1, function(x){
+        q1 = quantile(x, 0.25)
+        q3 = quantile(x, 0.75)
+        100 * (q3-q1) / (q3+q1)
+        })
+      ranked_variance = names(sort(cqv, decreasing = T)[1:max(args$MOST_VARIABLE_CUTOFF)])
+    } else if (mvm == 'IQV') {
+      iqv = apply(nmlcpm, 1, function(x){
+        q1 = quantile(x, 0.25)
+        q3 = quantile(x, 0.75)
+        var(x[x >= q1 & x <= q3])
+      })
+      ranked_variance = names(sort(iqv, decreasing = T)[1:max(args$MOST_VARIABLE_CUTOFF)])
+    } else {
+      cat(paste0('ERROR: Unimplemented MOST_VARIABLE_METHOD encountered: ', mvm, '\n'))
+      next
+    }
+    
+    prefix_ubh=file.path(prefix_nm, 'unbiased_heatmaps', mvm)
+    dir.create(prefix_ubh, showWarnings = FALSE, recursive = TRUE)
+    
+    for (mvc in args$MOST_VARIABLE_CUTOFF) {
+      cat(paste0('Plotting unbiased heatmap with ', nm, ' cpms across ', mvc, ' variable genes using the ', mvm, ' method.\n'))
+      top_most_variable_genes = ranked_variance[1:mvc]
+      png(filename=file.path(prefix_ubh, paste('voom_', 
+                                               gsub('.{6}$', '', nm), 
+                                               '_unbiased_top', 
+                                               mvc,
+                                               '_',
+                                               mvm,
+                                               '_heatmap.png',
+                                               sep='')), 
+          width = 20, height = 15, units = "in", res = 150)
+      temp_rownames <- ensembl_to_symbol[ensembl_to_symbol$ensembl %in% top_most_variable_genes, ]
+      rownames(temp_rownames) <- temp_rownames$ensembl
+      temp_rownames <- temp_rownames[top_most_variable_genes, ]
+      temp <- nmlcpm[top_most_variable_genes,]
+      rownames(temp) <- temp_rownames$hugo
+      x <- coolmap.2(temp, 
+                     ColSideColors=labs, 
+                     margins=c(12, 25),
+                     cbar_extreme=2,
+                     ColSideColorSeparator=TRUE,
+                     cexCol=1)
+      legend("topright",
+             legend=legend.text,
+             fill=legend.fill,
+             border=FALSE,
+             bty="n",
+             y.intersp = 0.7,
+             cex=0.7,
+             ncol=1, 
+             text.col = legend.text.col,
+             text.font = legend.text.font)
+      dev.off()
+      png(filename=file.path(prefix_ubh, paste('voom_', 
+                                               gsub('.{6}$', '', nm), 
+                                               '_unbiased_top', 
+                                               mvc,
+                                               '_',
+                                               mvm,
+                                               '_rowdendro.png',
+                                               sep='')),
+          width = 25, height = 5, units = "in", res = 150)
+      plot(x$rowDendrogram)
+      dev.off()
+      writeLines(rownames(temp)[order.dendrogram(x$rowDendrogram)], 
+                 con=file.path(prefix_ubh, paste('voom_', 
+                                                 gsub('.{6}$', '', nm), 
+                                                 '_unbiased_top', 
+                                                 mvc,
+                                                 '_',
+                                                 mvm,
+                                                 '_rowdendro.list',
+                                                 sep='')))
+    } # for (mvc in args$MOST_VARIABLE_CUTOFF)
+  } # for (mvm in args$MOST_VARIABLE_METHOD)
+  
+  for (gs in args$GENESETS) {
+    gs_name = strsplit(basename(gs), '[.]')[[1]][1]
+    
+    gs_genes = readLines(gs)
+    gs_genes = gs_genes[gs_genes %in% rownames(nmlcpm)]
+    
+    prefix_gs=file.path(prefix_nm, 'unbiased_heatmaps', gs_name)
+    dir.create(prefix_gs, showWarnings = FALSE, recursive = TRUE)
+    
+    cat(paste0('Plotting unbiased heatmap using geneset ', gs_name, '.\n'))
+    png(filename=file.path(prefix_gs, paste('voom_', 
+                                            gsub('.{6}$', '', nm), 
+                                            '_unbiased_',
+                                            gs_name,
+                                            '_heatmap.png',
+                                            sep='')), 
+        width = 20, height = 15, units = "in", res = 150)
+    temp_rownames <- ensembl_to_symbol[ensembl_to_symbol$ensembl %in% gs_genes, ]
     rownames(temp_rownames) <- temp_rownames$ensembl
-    temp_rownames <- temp_rownames[top_most_variable_genes, ]
-    temp <- nmlcpm[top_most_variable_genes,]
+    temp_rownames <- temp_rownames[gs_genes, ]
+    temp <- nmlcpm[gs_genes,]
     rownames(temp) <- temp_rownames$hugo
-    coolmap.2(temp, 
-              ColSideColors=labs, 
-              margins=c(12, 25),
-              cbar_extreme=2,
-              ColSideColorSeparator=TRUE,
-              cexCol=1)
+    x <- coolmap.2(temp, 
+                   ColSideColors=labs, 
+                   margins=c(12, 25),
+                   cbar_extreme=2,
+                   ColSideColorSeparator=TRUE,
+                   cexCol=1)
     legend("topright",
            legend=legend.text,
            fill=legend.fill,
@@ -601,47 +794,76 @@ for (nm in names(logcpm_matrices)) {
            text.col = legend.text.col,
            text.font = legend.text.font)
     dev.off()
-  } # for (mvc in args$MOST_VARIABLE_CUTOFF)
+    png(filename=file.path(prefix_gs, paste('voom_', 
+                                            gsub('.{6}$', '', nm), 
+                                            '_unbiased_',
+                                            gs_name,
+                                            '_rowdendro.png',
+                                            sep='')),
+        width = 25, height = 5, units = "in", res = 150)
+    plot(x$rowDendrogram)
+    dev.off()
+    writeLines(rownames(temp)[order.dendrogram(x$rowDendrogram)], 
+               con=file.path(prefix_gs, paste('voom_', 
+                                              gsub('.{6}$', '', nm), 
+                                              '_unbiased_',
+                                              gs_name,
+                                              '_rowdendro.list',
+                                              sep='')))
+  } # for (gs in args$GENESETS)
 } # for (nm in names(logcpm_matrices))
 
+top_tables = list()
+
+n=50
 for (cname in cnames) {
-  top_table = topTable(fit2, coef=cname, sort="p", number=Inf)
-  top_table$col <- 0
-  top_table$ensembl <- rownames(top_table)
-  top_table <- add_gene_symbol(top_table)
-  top_table <- top_table[order(top_table$adj.P.Val),]
-  top_100 <- c(rownames(head(top_table[top_table$logFC<0 & top_table$adj.P.Val <= 0.05,], 100)), rownames(head(top_table[top_table$logFC>0 & top_table$adj.P.Val <= 0.05,], 100)))
-  #top_n <- c(rownames(head(top_table[top_table$logFC<0 & top_table$P.Value <= 0.005,], 25)), rownames(head(top_table[top_table$logFC>0 & top_table$P.Value <= 0.005,], 25)))
-  #top_n <- c(rownames(head(top_table[top_table$logFC<0 & top_table$P.Value <= 0.005,], 50)), rownames(head(top_table[top_table$logFC>0 & top_table$P.Value <= 0.005,], 50)))
-  top_n <-rownames(top_table[top_table$adj.P.Val <= 0.05,])
-  top_n_hugo <-top_table[top_table$adj.P.Val <= 0.05, 'hugo']
-  top_table[rownames(top_table[top_table$adj.P.Val<0.05,]), "col"] = 1
-  top_table[top_100, "col"] = 2
-  top_table$col <- as.factor(top_table$col)
+  prefix_dge=file.path(args$OUT_FOLDER, args$GROUP_COL, 'DGE', cname)
+  dir.create(prefix_dge, showWarnings = FALSE, recursive = TRUE)
   
-  write.table(top_table, 
-              file=paste(args$OUT_FOLDER, paste('voom_', cname, '.tsv',sep=''), sep='/'), 
+  cat(paste0('Processing contrast ', cname, '\n'))
+  top_tables[[cname]] = topTable(fit2, coef=cname, sort="p", number=Inf)
+  top_tables[[cname]]$col <- 0
+  top_tables[[cname]]$ensembl <- rownames(top_tables[[cname]])
+  top_tables[[cname]] <- add_gene_symbol(top_tables[[cname]])
+  top_tables[[cname]] <- top_tables[[cname]][order(top_tables[[cname]]$logFC),]
+  top_n <- c(rownames(head(top_tables[[cname]][top_tables[[cname]]$logFC<0 & top_tables[[cname]]$adj.P.Val <= args$FDR_THRESHOLD,], n)), 
+             rownames(tail(top_tables[[cname]][top_tables[[cname]]$logFC>0 & top_tables[[cname]]$adj.P.Val <= args$FDR_THRESHOLD,], n)))
+  top_tables[[cname]][rownames(top_tables[[cname]][top_tables[[cname]]$P.Value <= 0.01,]), "col"] = 1
+  top_tables[[cname]][rownames(top_tables[[cname]][top_tables[[cname]]$adj.P.Val<=args$FDR_THRESHOLD,]), "col"] = 2
+  top_tables[[cname]]$col <- factor(top_tables[[cname]]$col, levels=c(0,1,2))
+  
+  write.table(top_tables[[cname]], 
+              file=file.path(prefix_dge, paste('voom_', cname, '.tsv',sep='')), 
               sep='\t', 
               row.names=F, 
               col.names=T, 
               quote=F)
-  p <- ggplot(top_table, aes(logFC, -log10(adj.P.Val))) + 
-          geom_point(aes(col=col)) + 
-          scale_color_manual(values=c("black", "red", "red")) + 
-          theme(legend.position = "none") + 
-          geom_text_repel(data=filter(top_table, col=='2'), 
-                          aes(label=hugo), 
-                          size=2, 
-                          color='black')
-  png(filename=paste(args$OUT_FOLDER, paste('voom_', cname, '.png',sep=''), sep='/'), width = 10, height = 10, units = "in", res = 150)
+  p <- ggplot(top_tables[[cname]], aes(logFC, -log10(P.Value))) + 
+    geom_point(aes(col=col)) + 
+    scale_color_manual(name='Significance',
+                       values=c("grey", "black", "red"),
+                       labels=c('p > 0.01', 'p <= 0.01', paste0('fdr <= ', args$FDR_THRESHOLD)),
+                       drop=F) + 
+    theme(legend.position = "none") + 
+    theme_bw() +
+    geom_text_repel(data=top_tables[[cname]][top_n,], 
+                    aes(label=hugo), 
+                    size=2, 
+                    color='black')
+  png(filename=file.path(prefix_dge, paste('voom_', cname, '.png',sep='')), width = 10, height = 10, units = "in", res = 150)
   print(p)
   dev.off()
   
+  top_tables[[cname]] = top_tables[[cname]][top_tables[[cname]]$adj.P.Val<args$FDR_THRESHOLD, ]
+  if(dim(top_tables[[cname]])[1] == 0) {
+    cat(paste0('WARNING: No genes passed the fdr threshold of ', args$FDR_THRESHOLD, '.\n'))
+    next
+  }
+  
   if (args$RUN_STRING_DE){
-    try(run_string(paste(args$OUT_FOLDER, 
-                         paste0(cname, '_DE'), 
-                         sep="/"),
-                   top_table = top_table[top_table$adj.P.Val<0.05, ], 
+    try(run_string(file.path(prefix_dge, 
+                             paste0(cname, '_DE')),
+                   top_table = top_tables[[cname]], 
                    string_db = string_db, 
                    usesig=FALSE,
                    logFcColStr="logFC",
@@ -649,29 +871,28 @@ for (cname in cnames) {
                    trend_classes=c('UP', 'DOWN')))
   }
   if (args$RUN_DAVID_DE){
-    try(run_david(paste(args$OUT_FOLDER, 
-                         paste0(cname, '_DE'), 
-                         sep="/"),
-                   top_table = top_table[top_table$adj.P.Val<0.05, ], 
-                   david_db = david_db, 
-                   genelist_prefix = cname,
-                   logFcColStr="logFC",
-                   trend_col="regulation",
-                   trend_classes=c('UP', 'DOWN')))
+    try(run_david(file.path(prefix_dge, 
+                            paste0(cname, '_DE')),
+                  top_table = top_tables[[cname]], 
+                  david_db = david_db, 
+                  genelist_prefix = cname,
+                  logFcColStr="logFC",
+                  trend_col="regulation",
+                  trend_classes=c('UP', 'DOWN')))
   }
   
   for (nm in names(logcpm_matrices)) {
     nmlcpm <- logcpm_matrices[[nm]]
     cat(paste0('Plotting raw heatmap with ', nm, ' cpms\n'))
     
-    png(filename=paste(args$OUT_FOLDER, paste('voom_', cname, '_', gsub('.{6}$', '', nm), '_heatmap.png',sep=''), sep='/'), width = 20, height = 15, units = "in", res = 150)
-
-    temp <- nmlcpm[top_n,]
-    rownames(temp) <- top_n_hugo
-    coolmap.2(temp, 
-              ColSideColors=labs, 
-              margins=c(12, 25),
-              cbar_extreme=2)  
+    png(filename=file.path(prefix_dge, paste('voom_', cname, '_', gsub('.{6}$', '', nm), '_heatmap.png',sep='')), width = 20, height = 15, units = "in", res = 150)
+    
+    temp <- nmlcpm[rownames(top_tables[[cname]]),]
+    rownames(temp) <- top_tables[[cname]]$hugo
+    x <- coolmap.2(temp, 
+                   ColSideColors=labs, 
+                   margins=c(12, 25),
+                   cbar_extreme=2)  
     legend("topright",
            legend=legend.text,
            fill=legend.fill,
@@ -683,5 +904,58 @@ for (cname in cnames) {
            text.col = legend.text.col,
            text.font = legend.text.font)
     dev.off()
+    png(filename=file.path(prefix_dge, paste('voom_', cname, '_', gsub('.{6}$', '', nm), '_rowdendro.png',sep='')), width = 25, height = 5, units = "in", res = 150)
+    plot(x$rowDendrogram)
+    dev.off()
+    writeLines(rownames(temp)[order.dendrogram(x$rowDendrogram)], 
+               con=file.path(prefix_dge, paste('voom_', cname, '_', gsub('.{6}$', '', nm), '_rowdendro.list',sep='')))
   } # for (nm in names(logcpm_matrices))
 } # for (cname in cnames)
+
+n=100
+if (length(top_tables) > 1) {
+  prefix_ava=file.path(args$OUT_FOLDER, args$GROUP_COL, 'DGE', 'all_vs_all')
+  dir.create(prefix_ava, showWarnings = FALSE, recursive = TRUE)
+  
+  top_tables_rest <- top_tables[grepl('_vs_rest', names(top_tables))]
+  top_n_per <- lapply(
+    top_tables_rest,
+    function(x){
+      (x %>% 
+         filter(logFC>0) %>%
+         top_n(n, wt=abs(logFC)))$ensembl
+    }
+  )
+  top_n_per <- add_gene_symbol(data.frame(ensembl=unname(unlist(top_n_per)), stringsAsFactors = F))
+  
+  for (nm in names(logcpm_matrices)) {
+    nmlcpm <- logcpm_matrices[[nm]]
+    cat(paste0('Plotting raw heatmap with ', nm, ' cpms\n'))
+    
+    png(filename=file.path(prefix_ava, paste('voom_all_vs_all_', gsub('.{6}$', '', nm), '_heatmap.png',sep='')), width = 20, height = 15, units = "in", res = 150)
+    
+    temp <- nmlcpm[top_n_per$ensembl,]
+    rownames(temp) <- top_n_per$hugo
+    x <- coolmap.2(temp, 
+                   ColSideColors=labs, 
+                   margins=c(12, 25),
+                   cbar_extreme=2)  
+    legend("topright",
+           legend=legend.text,
+           fill=legend.fill,
+           border=FALSE,
+           bty="n",
+           y.intersp = 0.7,
+           cex=0.7,
+           ncol=1, 
+           text.col = legend.text.col,
+           text.font = legend.text.font)
+    dev.off()
+    png(filename=file.path(prefix_ava, paste('voom_all_vs_all_', gsub('.{6}$', '', nm), '_rowdendro.png',sep='')), width = 25, height = 5, units = "in", res = 150)
+    plot(x$rowDendrogram)
+    dev.off()
+    writeLines(rownames(temp)[order.dendrogram(x$rowDendrogram)], 
+               con=file.path(prefix_ava, paste('voom_all_vs_all_', gsub('.{6}$', '', nm), '_rowdendro.list',sep='')))
+    
+  } # for (nm in names(logcpm_matrices))
+}
