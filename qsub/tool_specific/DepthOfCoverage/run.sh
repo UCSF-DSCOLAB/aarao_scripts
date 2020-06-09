@@ -3,8 +3,8 @@ set -e
 set -o nounset
 module load CBC gatk/${GATKVERSION}
 
-mkdir /scratch/arrao/DepthOfCoverage_${SAMPLE} && cd /scratch/arrao/DepthOfCoverage_${SAMPLE} 
-trap "{ rm -rf /scratch/arrao/DepthOfCoverage_${SAMPLE} /scratch/arrao/${SAMPLE}_javatmp ; }" EXIT
+mkdir /scratch/${USER}/DepthOfCoverage_${SAMPLE} && cd /scratch/${USER}/DepthOfCoverage_${SAMPLE} 
+trap "{ rm -rf /scratch/${USER}/DepthOfCoverage_${SAMPLE} /scratch/${USER}/${SAMPLE}_javatmp ; }" EXIT
 
 out_dir=$(dirname ${SAMFILE})
 
@@ -15,7 +15,7 @@ else
     INTERVALSTRING="--intervals ${INTERVALFILE}"
 fi
 
-java -Djava.io.tmpdir=/scratch/arrao/${SAMPLE}_javatmp -Xmx${MEMORY}g -jar $GATK_HOME/GenomeAnalysisTK.jar \
+java -Djava.io.tmpdir=/scratch/${USER}/${SAMPLE}_javatmp -Xmx${MEMORY}g -jar $GATK_HOME/GenomeAnalysisTK.jar \
     -T DepthOfCoverage \
     -I ${SAMFILE} \
     ${INTERVALSTRING} \
@@ -29,4 +29,4 @@ java -Djava.io.tmpdir=/scratch/arrao/${SAMPLE}_javatmp -Xmx${MEMORY}g -jar $GATK
     --summaryCoverageThreshold 50 \
     --summaryCoverageThreshold 100 
 
-mv /scratch/arrao/DepthOfCoverage_${SAMPLE}/ ${out_dir}/DepthOfCoverage/
+mv /scratch/${USER}/DepthOfCoverage_${SAMPLE}/ ${out_dir}/DepthOfCoverage/

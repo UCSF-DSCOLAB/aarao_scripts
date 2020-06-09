@@ -20,14 +20,14 @@ EOF
 
 read -r -d '' GLOBAL_OPTIONAL_HELPTEXT << EOF || true
 ## GLOBAL OPTIONAL PARAMETERS ##
-LOGDIR=/path/to/logdir (/krummellab/data1/arrao/logs)
+LOGDIR=/path/to/logdir (/krummellab/data1/${USER}/logs)
 NODEREQS=nodes=1:ppn=64
 MEMREQS=vmem=500gb
 EOF
 
 if [ ${LOGDIR-"EMPTY"} == "EMPTY" ]
 then
-    LOGDIR=/krummellab/data1/arrao/logs
+    LOGDIR=/krummellab/data1/${USER}/logs
 else
     LOGDIR=${LOGDIR#/}
 fi

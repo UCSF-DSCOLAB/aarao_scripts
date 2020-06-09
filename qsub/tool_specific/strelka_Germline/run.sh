@@ -2,11 +2,11 @@
 set -e
 set -o nounset
 
-source /home/arrao/miniconda3/etc/profile.d/conda.sh
+source /home/${USER}/miniconda3/etc/profile.d/conda.sh
 conda activate strelka
 
-mkdir /scratch/arrao/strekla_GL_${SAMPLE} && cd /scratch/arrao/strekla_GL_${SAMPLE} 
-trap "{ rm -rf /scratch/arrao/strekla_GL_${SAMPLE} /scratch/arrao/${SAMPLE}_javatmp ; }" EXIT
+mkdir /scratch/${USER}/strekla_GL_${SAMPLE} && cd /scratch/${USER}/strekla_GL_${SAMPLE} 
+trap "{ rm -rf /scratch/${USER}/strekla_GL_${SAMPLE} /scratch/${USER}/${SAMPLE}_javatmp ; }" EXIT
 
 extension=${SAMFILE##*.}
 
@@ -26,4 +26,4 @@ ${SAMPLE}/runWorkflow.py \
        --jobs ${PBS_NUM_PPN} \
        --memGb ${MEMORY}
 
-mv /scratch/arrao/strekla_GL_${SAMPLE}/${SAMPLE}/results/ ${out_dir}/strelka/
+mv /scratch/${USER}/strekla_GL_${SAMPLE}/${SAMPLE}/results/ ${out_dir}/strelka/

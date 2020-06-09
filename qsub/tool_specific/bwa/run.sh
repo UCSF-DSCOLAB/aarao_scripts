@@ -4,8 +4,8 @@ set -o nounset
 
 source /krummellab/data1/ipi/ipi_usr/SOURCE_THIS 
 
-mkdir /scratch/arrao/bwa_${SAMPLE} && cd /scratch/arrao/bwa_${SAMPLE} 
-trap "{ rm -rf /scratch/arrao/bwa_${SAMPLE} ; }" EXIT
+mkdir /scratch/${USER}/bwa_${SAMPLE} && cd /scratch/${USER}/bwa_${SAMPLE} 
+trap "{ rm -rf /scratch/${USER}/bwa_${SAMPLE} ; }" EXIT
 
 # This is old and will eb deleted soon.
 getRG(){

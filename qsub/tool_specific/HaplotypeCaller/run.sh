@@ -4,8 +4,8 @@ set -o nounset
 module load CBC gatk/${GATKVERSION}
 
 
-mkdir /scratch/arrao/HaplotypeCaller_${SAMPLE} && cd /scratch/arrao/HaplotypeCaller_${SAMPLE} 
-trap "{ rm -rf /scratch/arrao/HaplotypeCaller_${SAMPLE} /scratch/arrao/${SAMPLE}_javatmp ; }" EXIT
+mkdir /scratch/${USER}/HaplotypeCaller_${SAMPLE} && cd /scratch/${USER}/HaplotypeCaller_${SAMPLE} 
+trap "{ rm -rf /scratch/${USER}/HaplotypeCaller_${SAMPLE} /scratch/${USER}/${SAMPLE}_javatmp ; }" EXIT
 
 
 
@@ -43,7 +43,7 @@ fi
     
 
 out_dir=$(dirname ${SAMFILE})
-gatk --java-options "-Djava.io.tmpdir=/scratch/arrao/${SAMPLE}_javatmp -Xmx${MEMORY}g" \
+gatk --java-options "-Djava.io.tmpdir=/scratch/${USER}/${SAMPLE}_javatmp -Xmx${MEMORY}g" \
    HaplotypeCaller \
    ${INTERVALSTRING} \
    ${GVCFSTRING} \
@@ -55,4 +55,4 @@ gatk --java-options "-Djava.io.tmpdir=/scratch/arrao/${SAMPLE}_javatmp -Xmx${MEM
    --dont-use-soft-clipped-bases ${DONTUSESOFTCLIPPEDBASES}
    
 
-mv /scratch/arrao/HaplotypeCaller_${SAMPLE}/${SAMPLE}_GL* ${out_dir}/
+mv /scratch/${USER}/HaplotypeCaller_${SAMPLE}/${SAMPLE}_GL* ${out_dir}/

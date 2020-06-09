@@ -2,13 +2,13 @@
 set -e
 set -o nounset
 
-source /krummellab/data1/arrao/scripts/bash/essentials.sh
+source /krummellab/data1/${USER}/aarao_scripts/bash/essentials.sh
 uuid=`randomstr 10`
 
 module load CBC cellranger/3.0.2
 
-mkdir -p /scratch/arrao/cellranger_mkfastq_${FLOWCELLID}_${uuid}/working  /scratch/arrao/cellranger_mkfastq_${FLOWCELLID}_${uuid}/working && cd /scratch/arrao/cellranger_mkfastq_${FLOWCELLID}_${uuid}/working 
-trap "{ rm -rf /scratch/arrao/cellranger_mkfastq_${FLOWCELLID}_${uuid} ; }" EXIT
+mkdir -p /scratch/${USER}/cellranger_mkfastq_${FLOWCELLID}_${uuid}/working  /scratch/${USER}/cellranger_mkfastq_${FLOWCELLID}_${uuid}/working && cd /scratch/${USER}/cellranger_mkfastq_${FLOWCELLID}_${uuid}/working 
+trap "{ rm -rf /scratch/${USER}/cellranger_mkfastq_${FLOWCELLID}_${uuid} ; }" EXIT
 
 fastq_dir=$(dirname $(pwd))/fastqs
 
@@ -41,7 +41,7 @@ do
   cd ${subfolder}
   echo "Validating entries within ${subfolder}"
   echo "Testing Gzip integrity"
-  ls *gz | xargs -n1 /krummellab/data1/arrao/scripts/bash/on_path/test_pigz_integrity
+  ls *gz | xargs -n1 /krummellab/data1/${USER}/aarao_scripts/bash/on_path/test_pigz_integrity
   echo "Generating md5sums"
   md5sum *.fastq.gz > md5checksum.txt
   echo ""

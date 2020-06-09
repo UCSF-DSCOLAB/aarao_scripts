@@ -4,8 +4,8 @@ set -o nounset
 
 module load CBC cellranger/3.0.2
 
-mkdir /scratch/arrao/cellranger_count_${SAMPLE} && cd /scratch/arrao/cellranger_count_${SAMPLE} 
-trap "{ rm -rf /scratch/arrao/cellranger_count_${SAMPLE} ; }" EXIT
+mkdir /scratch/${USER}/cellranger_count_${SAMPLE} && cd /scratch/${USER}/cellranger_count_${SAMPLE} 
+trap "{ rm -rf /scratch/${USER}/cellranger_count_${SAMPLE} ; }" EXIT
 
 featureref_argstring=" "
 if grep -q "Antibody Capture" ${LIBRARIES_CSV}
@@ -32,8 +32,8 @@ cellranger count --id=${SAMPLE} \
 
 if [ -f ${OUTDIR} ]
 then
-    mv /scratch/arrao/cellranger_count_${SAMPLE}/${SAMPLE}/outs ${OUTDIR}/${SAMPLE}_counts
+    mv /scratch/${USER}/cellranger_count_${SAMPLE}/${SAMPLE}/outs ${OUTDIR}/${SAMPLE}_counts
 else
     mkdir -p $(dirname ${OUTDIR})
-    mv /scratch/arrao/cellranger_count_${SAMPLE}/${SAMPLE}/outs ${OUTDIR}
+    mv /scratch/${USER}/cellranger_count_${SAMPLE}/${SAMPLE}/outs ${OUTDIR}
 fi

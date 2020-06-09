@@ -4,8 +4,8 @@ set -o nounset
 
 source /krummellab/data1/ipi/ipi_usr/SOURCE_THIS
 
-mkdir /scratch/arrao/fastp_${SAMPLE} && cd /scratch/arrao/fastp_${SAMPLE} 
-trap "{ rm -rf /scratch/arrao/fastp_${SAMPLE} ; }" EXIT
+mkdir /scratch/${USER}/fastp_${SAMPLE} && cd /scratch/${USER}/fastp_${SAMPLE} 
+trap "{ rm -rf /scratch/${USER}/fastp_${SAMPLE} ; }" EXIT
 
 getExtension() {
       x=${1##*.}
@@ -46,4 +46,4 @@ fastp -i ${FQ1} \
       -h ${SAMPLE}_fastp.html
 
 mkdir -p ${OUTDIR}
-mv /scratch/arrao/fastp_${SAMPLE}/* ${OUTDIR}/
+mv /scratch/${USER}/fastp_${SAMPLE}/* ${OUTDIR}/

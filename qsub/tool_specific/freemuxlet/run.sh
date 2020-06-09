@@ -5,8 +5,8 @@ source /krummellab/data1/ipi/software/bedtools/2.29.2/SOURCE_THIS
 set -e
 set -o nounset
 
-mkdir -p /scratch/arrao/freemuxlet_${SAMPLE} && cd /scratch/arrao/freemuxlet_${SAMPLE}
-trap "{ rm -rf /scratch/arrao/freemuxlet_${SAMPLE}}" EXIT
+mkdir -p /scratch/${USER}/freemuxlet_${SAMPLE} && cd /scratch/${USER}/freemuxlet_${SAMPLE}
+trap "{ rm -rf /scratch/${USER}/freemuxlet_${SAMPLE}}" EXIT
 
 prefix=$(basename ${BAMFILE%.*})
 extension=${BAMFILE##*.}
