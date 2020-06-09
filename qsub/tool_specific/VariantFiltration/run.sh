@@ -4,8 +4,8 @@ set -o nounset
 module load CBC gatk/${GATKVERSION}
 
 
-mkdir /scratch/arrao/VariantFiltration_${SAMPLE} && cd /scratch/arrao/VariantFiltration_${SAMPLE} 
-trap "{ rm -rf /scratch/arrao/VariantFiltration_${SAMPLE} /scratch/arrao/${SAMPLE}_javatmp ; }" EXIT
+mkdir /scratch/${USER}/VariantFiltration_${SAMPLE} && cd /scratch/${USER}/VariantFiltration_${SAMPLE} 
+trap "{ rm -rf /scratch/${USER}/VariantFiltration_${SAMPLE} /scratch/${USER}/${SAMPLE}_javatmp ; }" EXIT
 
 if [ ${INTERVALFILE-"EMPTY"} == "NONE" ]
 then
@@ -20,7 +20,7 @@ extension=${VCFFILE##*.}
 out_dir=$(dirname ${VCFFILE})
 out_base=$(basename ${VCFFILE%.${extension}})_filtered
 
-gatk --java-options "-Djava.io.tmpdir=/scratch/arrao/${SAMPLE}_javatmp -Xmx${MEMORY}g" \
+gatk --java-options "-Djava.io.tmpdir=/scratch/${USER}/${SAMPLE}_javatmp -Xmx${MEMORY}g" \
     VariantFiltration \
     ${INTERVALSTRING} \
     -R ${GENOMEREF} \
@@ -33,4 +33,4 @@ gatk --java-options "-Djava.io.tmpdir=/scratch/arrao/${SAMPLE}_javatmp -Xmx${MEM
 
 # TODO: Think about other filters to add
 
-mv /scratch/arrao/VariantFiltration_${SAMPLE}/${out_base}* ${out_dir}/
+mv /scratch/${USER}/VariantFiltration_${SAMPLE}/${out_base}* ${out_dir}/

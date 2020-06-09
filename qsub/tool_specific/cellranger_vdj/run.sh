@@ -2,13 +2,13 @@
 set -e
 set -o nounset
 
-source /krummellab/data1/arrao/scripts/bash/essentials.sh
+source /krummellab/data1/${USER}/aarao_scripts/bash/essentials.sh
 uuid=`randomstr 10`
 
 module load CBC cellranger/3.0.2
 
-mkdir /scratch/arrao/cellranger_vdj_${SAMPLE}_${uuid} && cd /scratch/arrao/cellranger_vdj_${SAMPLE}_${uuid} 
-trap "{ rm -rf /scratch/arrao/cellranger_vdj_${SAMPLE}_${uuid} ; }" EXIT
+mkdir /scratch/${USER}/cellranger_vdj_${SAMPLE}_${uuid} && cd /scratch/${USER}/cellranger_vdj_${SAMPLE}_${uuid} 
+trap "{ rm -rf /scratch/${USER}/cellranger_vdj_${SAMPLE}_${uuid} ; }" EXIT
 
 
 cellranger vdj --id=${SAMPLE} \
@@ -20,8 +20,8 @@ cellranger vdj --id=${SAMPLE} \
 
 if [ -f ${OUTDIR} ]
 then
-    mv /scratch/arrao/cellranger_vdj_${SAMPLE}_${uuid}/${SAMPLE}/outs ${OUTDIR}/${SAMPLE}_vdj_${uuid}
+    mv /scratch/${USER}/cellranger_vdj_${SAMPLE}_${uuid}/${SAMPLE}/outs ${OUTDIR}/${SAMPLE}_vdj_${uuid}
 else
     mkdir -p $(dirname ${OUTDIR})
-    mv /scratch/arrao/cellranger_vdj_${SAMPLE}_${uuid}/${SAMPLE}/outs ${OUTDIR}
+    mv /scratch/${USER}/cellranger_vdj_${SAMPLE}_${uuid}/${SAMPLE}/outs ${OUTDIR}
 fi

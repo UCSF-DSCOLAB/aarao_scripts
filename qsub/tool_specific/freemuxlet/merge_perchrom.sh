@@ -41,7 +41,7 @@ do
     fi
 done
 
-~/miniconda3/envs/pysam/bin/python /krummellab/data1/arrao/scripts/python/merge_perchrom_dsc_pileups.py \
+/krummellab/data1/ipi/software/miniconda3/envs/pysam/bin/python /krummellab/data1/${USER}/arrao_scripts/python/merge_perchrom_dsc_pileups.py \
     ${OUTDIR}/${prefix}_ ${OUTDIR}/${prefix}_MERGED ${BAMFILE} 
 
 popscle freemuxlet --plp ${OUTDIR}/${prefix}_MERGED \
