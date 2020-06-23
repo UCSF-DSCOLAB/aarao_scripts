@@ -1,0 +1,18 @@
+#! /bin/bash
+set -e 
+set -o nounset
+
+if [ $# -ne 1 ]
+then
+  echo "Need one argument to run this function"
+else
+  if [ ! -f $1 ]
+  then
+    echo "The provided file ($1) does not exist"
+    exit
+  else
+    echo -e "${1} : \t\c"
+    gzip --test ${1} &>/dev/null && echo OK || echo FAIL
+  fi
+fi
+

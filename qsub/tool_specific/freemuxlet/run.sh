@@ -6,7 +6,7 @@ set -e
 set -o nounset
 
 mkdir -p /scratch/${USER}/freemuxlet_${SAMPLE} && cd /scratch/${USER}/freemuxlet_${SAMPLE}
-trap "{ rm -rf /scratch/${USER}/freemuxlet_${SAMPLE}}" EXIT
+trap "{ rm -rf /scratch/${USER}/freemuxlet_${SAMPLE} ; }" EXIT
 
 prefix=$(basename ${BAMFILE%.*})
 extension=${BAMFILE##*.}
