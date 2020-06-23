@@ -1,0 +1,52 @@
+#! /bin/bash
+set -e 
+set -o nounset
+
+# Ensure pigz exists
+if [ -n "$(which pigz 2>/dev/null)" ]
+then
+  pigz_executable=$(which pigz)
+elif [ -x "/krummellab/data1/ipi/ipi_usr/bin/pigz" ]
+then
+  # TIPCC specific
+  pigz_executable=/krummellab/data1/ipi/ipi_usr/bin/pigz
+else
+  echo "ERROR: Could not find a pigz executable."
+  exit 1
+fi
+
+
+if [ $# -lt 1 ] || [ $# -gt 2 ]
+then
+  echo "Need one or two arguments to run this function"
+  echo "Syntax: test_pigz_integrity /path/to/file.gz [ NUM_CORES ]"
+  exit 1
+elif [ $# -eq 2 ] 
+then
+  num_procs=${2}
+else
+  # Get num cores from the environment
+  if [ ${NUM_PROCS-"ERR"} != "ERR" ]
+  then
+    num_procs=${NUM_PROCS}
+  elif [ ${PBS_NUM_PPN-"ERR"} != "ERR" ]
+  then
+    # TIPCC specific
+    num_procs=${PBS_NUM_PPN}
+  else
+    echo "Using 1 processor. Passing n as the second argument to the script, or setting NUM_PROCS=n or PSB_NUM_PPN=n (in order of preference) will use n cores."
+    num_procs=1
+  fi
+fi
+
+
+if [ ! -f $1 ]
+then
+  echo "The provided file ($1) does not exist"
+  exit
+else
+  echo -e "${1} : \t\c"
+  ${pigz_executable} -p ${num_procs} --test ${1} &>/dev/null && echo OK || echo FAIL
+fi
+
+
