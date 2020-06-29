@@ -19,7 +19,8 @@ else
   exit 1
 fi
 
-java -Xmx100G -jar /data/shared/krummellab/ipi/software/picard-2.18.14/picard.jar SamToFastq I=unmapped.bam \
+java -XX:ParallelGCThreads=${PBS_NUM_PPN} \
+    -Xmx100G -jar /data/shared/krummellab/ipi/software/picard-2.18.14/picard.jar SamToFastq I=unmapped.bam \
     F=unmapped_1.fq \
     F2=unmapped_2.fq \
     FU=unmapped_up.fq \
