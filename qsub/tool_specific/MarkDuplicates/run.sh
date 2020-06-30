@@ -11,7 +11,8 @@ extension=${SAMFILE##*.}
 
 out_dir=$(dirname ${SAMFILE})
 out_base=$(basename ${SAMFILE%.${extension}})_DupMarked
-java -Xmx${MEMORY}g  \
+java -XX:ParallelGCThreads=${PBS_NUM_PPN} \
+    -Xmx${MEMORY}g  \
     -Djava.io.tmpdir=/scratch/${USER}/${SAMPLE}_javatmp \
     -jar /krummellab/data1/ipi/software/picard/${PICARDVERSION}/picard.jar \
     MarkDuplicates \

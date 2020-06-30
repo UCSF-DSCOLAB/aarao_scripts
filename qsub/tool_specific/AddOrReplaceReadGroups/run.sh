@@ -9,7 +9,8 @@ trap "{ rm -rf /scratch/arrao/AddRepRGs_${SAMPLE} ; }" EXIT
 
 out_dir=$(dirname ${BAMFILE})
 out_base=$(basename ${BAMFILE%.bam})_RGFixed
-java -Xmx${MEMORY}g  \
+java -XX:ParallelGCThreads=${PBS_NUM_PPN} \
+    -Xmx${MEMORY}g  \
     -Djava.io.tmpdir=/scratch/arrao/${SAMPLE}_javatmp \
     -jar /data/shared/krummellab/ipi/software/picard-2.18.14/picard.jar \
     AddOrReplaceReadGroups \
