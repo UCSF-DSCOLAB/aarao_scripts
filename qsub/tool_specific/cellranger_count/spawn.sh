@@ -6,18 +6,19 @@ source $(dirname ${0})/../template_argparse.sh
 
 read -r -d '' REQUIRED_HELPTEXT  << EOF || true
 ## REQUIRED PARAMETERS ##
-LIBRARIES_CSV  : Path to a libraries.csv file.
-OUTDIR         : A folder within which we will place the output dir
+LIBRARIES_CSV      : Path to a libraries.csv file.
+OUTDIR             : A folder within which we will place the output dir
 EOF
 
 read -r -d '' LOCAL_OPTIONAL_HELPTEXT  << EOF || true
 ## OPTIONAL PARAMETERS ##
-SAMPLE         : The name of the sample (parsed from LIBRARIES_CSV by default)
-NODEREQS       : Default node requirements (default: nodes=1:ppn=32)[overrides global default]
-MEMREQS        : Default mem requirements (default: vmem=250gb)[overrides global default]
-TRANSCRIPTOME  : Path to 10X Indexes (default: /krummellab/data1/ipi/data/refs/10x/hg38)
-CHEMISTRY      : 10X Chemistry. (default: auto)
-FEATUREREF     : Feature reference file for CITE-Seq or hashtags (default: /krummellab/data1/ipi/data/refs/10x/biolegend_totalseq_hashtags.csv)
+SAMPLE             : The name of the sample (parsed from LIBRARIES_CSV by default)
+NODEREQS           : Default node requirements (default: nodes=1:ppn=32)[overrides global default]
+MEMREQS            : Default mem requirements (default: vmem=250gb)[overrides global default]
+TRANSCRIPTOME      : Path to 10X Indexes (default: /krummellab/data1/ipi/data/refs/10x/hg38)
+CHEMISTRY          : 10X Chemistry. (default: auto)
+FEATUREREF         : Feature reference file for CITE-Seq or hashtags (default: /krummellab/data1/ipi/data/refs/10x/biolegend_totalseq_hashtags.csv)
+CELLRANGERVERSION  : The version of cellranger to use (3.0.2)
 EOF
 
 if [ ${LIBRARIES_CSV-"ERR"} == "ERR" ] || [ ${OUTDIR-"ERR"} == "ERR" ]
@@ -29,7 +30,13 @@ fi
 
 if [[ ! "${RECEIVED_NAMED_ARGS[@]}" =~ "SAMPLE" ]]
 then
-    SAMPLE=`grep "Gene Expression" ${LIBRARIES_CSV} | awk -F"," '{print $2}'`
+    if grep -q "Gene Expression" ${LIBRARIES_CSV} || [ "$CELLRANGERVERSION" == "3.0.2" ]
+    then
+        SAMPLE=`grep "Gene Expression" ${LIBRARIES_CSV} | awk -F"," '{print $2}'`
+    else
+        # Assume the second line has the correct name 
+        SAMPLE=`head -2 ${LIBRARIES_CSV} | tail -1 | awk -F"," '{print $2}'`
+    fi
 fi
 
 # Override default NODEREQS and MEMREQS only if the user hasn't specified
@@ -70,18 +77,30 @@ else
     fi
 fi 
 
+if [[ ! "${RECEIVED_NAMED_ARGS[@]}" =~ "CELLRANGERVERSION" ]]
+then
+    CELLRANGERVERSION="3.0.2"
+else
+    allowed=("3.0.2" "3.1.0" "4.0.0")
+    if [[ ! "${allowed[@]}" =~ "${CELLRANGERVERSION}" ]]
+    then
+        echo -e "\nERROR: CELLRANGERVERSION must be one of \n\t${allowed[@]}\n"
+        exit 1
+    fi
+fi
 
 echo "Received the following options:"
-echo "LIBRARIES_CSV  : "${LIBRARIES_CSV-""}
-echo "OUTDIR         : "${OUTDIR-""}
-echo "SAMPLE         : "${SAMPLE-""}
-echo "TRANSCRIPTOME  : "${TRANSCRIPTOME-""}
-echo "FEATUREREF     : "${FEATUREREF-""}
-echo "CHEMISTRY      : "${CHEMISTRY-""}
+echo "LIBRARIES_CSV      : "${LIBRARIES_CSV-""}
+echo "OUTDIR             : "${OUTDIR-""}
+echo "SAMPLE             : "${SAMPLE-""}
+echo "TRANSCRIPTOME      : "${TRANSCRIPTOME-""}
+echo "FEATUREREF         : "${FEATUREREF-""}
+echo "CHEMISTRY          : "${CHEMISTRY-""}
+echo "CELLRANGERVERSION  : "${CELLRANGERVERSION-""}
 
-echo "LOGDIR   : "${LOGDIR}
-echo "NODEREQS : "${NODEREQS}
-echo "MEMREQS  : "${MEMREQS}
+echo "LOGDIR             : "${LOGDIR}
+echo "NODEREQS           : "${NODEREQS}
+echo "MEMREQS            : "${MEMREQS}
 echo -e "\n"
 
 MEMORY=`echo "$(echo ${MEMREQS} | sed 's/[^0-9]*//g')*0.9 / 1" | bc`
@@ -93,6 +112,7 @@ OUTDIR=${OUTDIR},\
 FEATUREREF=${FEATUREREF},\
 TRANSCRIPTOME=$(readlink -e ${TRANSCRIPTOME}),\
 CHEMISTRY=${CHEMISTRY},\
+CELLRANGERVERSION=${CELLRANGERVERSION},\
 MEMORY=${MEMORY}"
 
 qsub -v ${export_vars} \

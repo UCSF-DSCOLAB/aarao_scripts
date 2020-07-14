@@ -5,13 +5,21 @@ set -o nounset
 source /krummellab/data1/${USER}/aarao_scripts/bash/essentials.sh
 uuid=`randomstr 10`
 
-module load CBC cellranger/3.0.2
+source /krummellab/data1/ipi/software/cellranger/usr/SOURCE_THIS
 
-mkdir /scratch/${USER}/cellranger_vdj_${SAMPLE}_${uuid} && cd /scratch/${USER}/cellranger_vdj_${SAMPLE}_${uuid} 
+mkdir /scratch/${USER}/cellranger_vdj_${SAMPLE}_${uuid}
+cd /scratch/${USER}/cellranger_vdj_${SAMPLE}_${uuid} 
 trap "{ rm -rf /scratch/${USER}/cellranger_vdj_${SAMPLE}_${uuid} ; }" EXIT
 
-
-cellranger vdj --id=${SAMPLE} \
+echo "running command: "
+echo "cellranger-${CELLRANGERVERSION} vdj --id=${SAMPLE} \
+               --fastqs=${FASTQDIR} \
+               --reference=${REFERENCE} \
+               --chain=${CHAIN} \
+               --localcores=${PBS_NUM_PPN} \
+               --localmem=${MEMORY}"
+               
+cellranger-${CELLRANGERVERSION} vdj --id=${SAMPLE} \
                --fastqs=${FASTQDIR} \
                --reference=${REFERENCE} \
                --chain=${CHAIN} \

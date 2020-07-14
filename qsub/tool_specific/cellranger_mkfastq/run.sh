@@ -5,9 +5,10 @@ set -o nounset
 source /krummellab/data1/${USER}/aarao_scripts/bash/essentials.sh
 uuid=`randomstr 10`
 
-module load CBC cellranger/3.0.2
+source /krummellab/data1/ipi/software/cellranger/usr/SOURCE_THIS
 
-mkdir -p /scratch/${USER}/cellranger_mkfastq_${FLOWCELLID}_${uuid}/working  /scratch/${USER}/cellranger_mkfastq_${FLOWCELLID}_${uuid}/working && cd /scratch/${USER}/cellranger_mkfastq_${FLOWCELLID}_${uuid}/working 
+mkdir -p /scratch/${USER}/cellranger_mkfastq_${FLOWCELLID}_${uuid}/working  /scratch/${USER}/cellranger_mkfastq_${FLOWCELLID}_${uuid}/working
+cd /scratch/${USER}/cellranger_mkfastq_${FLOWCELLID}_${uuid}/working 
 trap "{ rm -rf /scratch/${USER}/cellranger_mkfastq_${FLOWCELLID}_${uuid} ; }" EXIT
 
 fastq_dir=$(dirname $(pwd))/fastqs
@@ -19,7 +20,7 @@ then
 fi
 
 echo "running command: "
-echo "cellranger mkfastq --csv=${SAMPLESHEET} \
+echo "cellranger-${CELLRANGERVERSION} mkfastq --csv=${SAMPLESHEET} \
                    --run=${BCLDIR} \
                    --barcode-mismatches=${BARCODEMISMATCHES} \
                    ${lanes_argstring} \
@@ -27,7 +28,7 @@ echo "cellranger mkfastq --csv=${SAMPLESHEET} \
                    --localcores=${PBS_NUM_PPN} \
                    --localmem=${MEMORY} "
 
-cellranger mkfastq --csv=${SAMPLESHEET} \
+cellranger-${CELLRANGERVERSION} mkfastq --csv=${SAMPLESHEET} \
                    --run=${BCLDIR} \
                    --barcode-mismatches=${BARCODEMISMATCHES} \
                    ${lanes_argstring} \

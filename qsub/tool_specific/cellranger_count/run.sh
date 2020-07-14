@@ -2,9 +2,10 @@
 set -e
 set -o nounset
 
-module load CBC cellranger/3.0.2
+source /krummellab/data1/ipi/software/cellranger/usr/SOURCE_THIS
 
-mkdir /scratch/${USER}/cellranger_count_${SAMPLE} && cd /scratch/${USER}/cellranger_count_${SAMPLE} 
+mkdir /scratch/${USER}/cellranger_count_${SAMPLE}
+cd /scratch/${USER}/cellranger_count_${SAMPLE} 
 trap "{ rm -rf /scratch/${USER}/cellranger_count_${SAMPLE} ; }" EXIT
 
 featureref_argstring=" "
@@ -13,8 +14,9 @@ then
     featureref_argstring="--feature-ref ${FEATUREREF} "
 fi
 
+
 echo "running command: "
-echo "cellranger count --id=${SAMPLE} \
+echo "cellranger-${CELLRANGERVERSION} count --id=${SAMPLE} \
                  ${featureref_argstring} \
                  --libraries ${LIBRARIES_CSV} \
                  --chemistry=${CHEMISTRY} \
@@ -22,7 +24,7 @@ echo "cellranger count --id=${SAMPLE} \
                  --localcores=${PBS_NUM_PPN} \
                  --localmem=${MEMORY}"
                  
-cellranger count --id=${SAMPLE} \
+cellranger-${CELLRANGERVERSION} count --id=${SAMPLE} \
                  ${featureref_argstring} \
                  --libraries ${LIBRARIES_CSV} \
                  --chemistry=${CHEMISTRY} \

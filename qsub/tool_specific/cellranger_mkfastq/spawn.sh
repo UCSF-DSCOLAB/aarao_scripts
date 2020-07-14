@@ -13,6 +13,7 @@ EOF
 
 read -r -d '' LOCAL_OPTIONAL_HELPTEXT  << EOF || true
 ## OPTIONAL PARAMETERS ##
+CELLRANGERVERSION  : The version of cellranger to use (3.0.2)
 BARCODEMISMATCHES  : Number of mismatches to allow in the barcode. (default=1)
 LANES              : Comma separated list of lanes to use. NO SPACES. (default=ALL)
 SAMPLESHEET        : Path to an Illumina samplesheet (default=<BCLDIR>/SampleSheet.csv)
@@ -24,6 +25,18 @@ if [ ${BCLDIR-"ERR"} == "ERR" ] || [ ${OUTDIR-"ERR"} == "ERR" ] || [ ${FLOWCELLI
 then
     echo -e "\nERROR: Required arguments cannot be empty\n"
     print_help  
+fi
+
+if [[ ! "${RECEIVED_NAMED_ARGS[@]}" =~ "CELLRANGERVERSION" ]]
+then
+    CELLRANGERVERSION="3.0.2"
+else
+    allowed=("3.0.2" "3.1.0" "4.0.0")
+    if [[ ! "${allowed[@]}" =~ "${CELLRANGERVERSION}" ]]
+    then
+        echo -e "\nERROR: CELLRANGERVERSION must be one of \n\t${allowed[@]}\n"
+        exit 1
+    fi
 fi
 
 if [[ ! "${RECEIVED_NAMED_ARGS[@]}" =~ "SAMPLESHEET" ]]
@@ -57,6 +70,7 @@ echo "BCLDIR              : "${BCLDIR-""}
 echo "OUTDIR              : "${OUTDIR-""}
 echo "FLOWCELLID          : "${FLOWCELLID-""}
 
+echo "CELLRANGERVERSION   : "${CELLRANGERVERSION-""}
 echo "SAMPLESHEET         : "${SAMPLESHEET-""}
 echo "BARCODEMISMATCHES   : "${BARCODEMISMATCHES-""}
 echo "LANES               : "${LANES-""}
@@ -72,6 +86,7 @@ BCLDIR=$(readlink -e ${BCLDIR}),\
 SAMPLESHEET=$(readlink -e ${SAMPLESHEET}),\
 OUTDIR=${OUTDIR},\
 FLOWCELLID=${FLOWCELLID},\
+CELLRANGERVERSION=${CELLRANGERVERSION},\
 BARCODEMISMATCHES=${BARCODEMISMATCHES},\
 LANES=${LANES},\
 MEMORY=${MEMORY}"
