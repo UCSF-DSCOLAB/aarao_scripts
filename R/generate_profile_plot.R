@@ -7,7 +7,7 @@ suppressPackageStartupMessages({
   if (!'package:Seurat' %in% search()) library(Seurat)
 })
 
-plot_all_profiles <- function(sobj, out_prefix, plot_extras=FALSE, scatter_color='red', ab_assay_name='IDX') {
+plot_all_profiles <- function(sobj, out_prefix, plot_extras=FALSE, scatter_color='red', other_assay_names=c('IDX', 'ADT')) {
     plots <- list()
     if (scatter_color %in% colnames(sobj@meta.data)){
       plots[[1]] <- generate_profile_plot(sobj,
@@ -64,21 +64,22 @@ plot_all_profiles <- function(sobj, out_prefix, plot_extras=FALSE, scatter_color
         nCount_RNA=quantile(sobj@meta.data[["nCount_RNA"]], seq(0, 1.01, 0.1)),
         row.names=seq(0, 1.01, 0.1)
         )
-
-    if (ab_assay_name %in% names(sobj@assays)){
-      plots[[7]] <- generate_profile_plot(sobj,
-                                          feature1 = paste0("nCount_", ab_assay_name),
-                                          feature2 = "nCount_RNA",
-                                          feature1_binwidth=100,
-                                          feature2_binwidth=100,
-                                          scatter_color=scatter_color)
-      plots[[8]] <- generate_profile_plot(sobj,
-                                          feature1 = paste0("nCount_", ab_assay_name),
-                                          feature2 = "percent.mt",
-                                          feature1_binwidth=100,
-                                          feature2_binwidth=0.1,
-                                          scatter_color=scatter_color)
-      df[paste0("nCount_", ab_assay_name)] <- quantile(sobj@meta.data[[paste0("nCount_", ab_assay_name)]], seq(0, 1.01, 0.1))
+    for (assay_name in other_assay_names){
+      if (assay_name %in% names(sobj@assays)){
+        plots[[7]] <- generate_profile_plot(sobj,
+                                            feature1 = paste0("nCount_", assay_name),
+                                            feature2 = "nCount_RNA",
+                                            feature1_binwidth=100,
+                                            feature2_binwidth=100,
+                                            scatter_color=scatter_color)
+        plots[[8]] <- generate_profile_plot(sobj,
+                                            feature1 = paste0("nCount_", assay_name),
+                                            feature2 = "percent.mt",
+                                            feature1_binwidth=100,
+                                            feature2_binwidth=0.1,
+                                            scatter_color=scatter_color)
+        df[paste0("nCount_", assay_name)] <- quantile(sobj@meta.data[[paste0("nCount_", assay_name)]], seq(0, 1.01, 0.1))
+      }
     }
 
     write.table(format(df, digits=2), 
@@ -95,9 +96,11 @@ plot_all_profiles <- function(sobj, out_prefix, plot_extras=FALSE, scatter_color
                                      binwidth=100))
       print(generate_inset_histogram(sobj=sobj, feature = "nFeature_RNA",
                                      binwidth=100))
-      if (ab_assay_name %in% names(sobj@assays)){
-        print(generate_inset_histogram(sobj=sobj, feature = paste0("nCount_", ab_assay_name),
-                                       binwidth=100))
+      for (assay_name in other_assay_names){
+        if (assay_name %in% names(sobj@assays)){
+          print(generate_inset_histogram(sobj=sobj, feature = paste0("nCount_", assay_name),
+                                         binwidth=100))
+        }
       }
       print(generate_inset_histogram(sobj=sobj, feature = "percent.mt",
                                      binwidth=0.1,

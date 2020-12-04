@@ -8,21 +8,18 @@ source $(dirname ${0})/../../../bash/essentials.sh
 read -r -d '' REQUIRED_HELPTEXT  << EOF || true
 ## REQUIRED PARAMETERS ##
 SAMPLE_YML         : Path to a list of samples (one per line) expected to be in DATADIR
-OUT_FOLDER         : A folder within which we will place the output dir(s)
 EOF
 
 read -r -d '' LOCAL_OPTIONAL_HELPTEXT  << EOF || true
 ## OPTIONAL PARAMETERS ##
-RSCRIPTS_DIR       : Where to find aux scripts (/krummellab/data1/arrao/scripts/R)
+WORKING_FOLDER     : A folder in which we will place the run warnings(\${TMPDIR})
+RSCRIPTS_DIR       : Where to find aux R scripts form the aarao_scripts repo (\${SCRIPTS}/R)
 GENESET_DIR        : Where to find genesets (/krummellab/data1/ipi/data/refs/10x/genesets)
-SPECIES            : human or mouse? (human)
-RERUN_STAGE        : Should we rerun the last run stage? (FALSE)  
-AB_ASSAY_NAME      : What should the antibody capture assay (if any) be called? (IDX)
 NODEREQS           : Default node requirements (default: nodes=1:ppn=1)[overrides global default]
 MEMREQS            : Default mem requirements (default: vmem=150gb)[overrides global default]
 EOF
 
-if [ ${SAMPLE_YML-"ERR"} == "ERR" ] || [ ${OUT_FOLDER-"ERR"} == "ERR" ]
+if [ ${SAMPLE_YML-"ERR"} == "ERR" ]
 then
     echo -e "\nERROR: Required arguments cannot be empty\n"
     print_help  
@@ -40,9 +37,19 @@ then
 fi
 
 #process optional args
+if [[ ! "${RECEIVED_NAMED_ARGS[@]}" =~ "WORKING_FOLDER" ]]
+then
+    WORKING_FOLDER="TMPDIR"
+else
+    if [ ! -f ${WORKING_FOLDER} ]
+    then
+       echo -e "\nERROR: WORKING_FOLDER does not exist: ${WORKING_FOLDER}\n" 
+    fi
+fi
+
 if [[ ! "${RECEIVED_NAMED_ARGS[@]}" =~ "RSCRIPTS_DIR" ]]
 then
-    RSCRIPTS_DIR="/krummellab/data1/arrao/scripts/R"
+    RSCRIPTS_DIR="${SCRIPTS}/R"
 else
     if [ ! -f ${RSCRIPTS_DIR} ]
     then
@@ -60,33 +67,11 @@ else
     fi
 fi
 
-if [[ ! "${RECEIVED_NAMED_ARGS[@]}" =~ "SPECIES" ]]
-then
-    SPECIES="human"
-fi
-
-if [[ ! "${RECEIVED_NAMED_ARGS[@]}" =~ "RERUN_STAGE" ]]
-then
-    RERUN_STAGE="FALSE"
-fi
-
-if [[ ! "${RECEIVED_NAMED_ARGS[@]}" =~ "AB_ASSAY_NAME" ]]
-then
-    AB_ASSAY_NAME="IDX"
-fi
-
-
 echo "Received the following options:"
-echo "OUT_FOLDER     : "${OUT_FOLDER-""}
-echo "SAMPLE_YML        : "${SAMPLE_YML-""}
+echo "SAMPLE_YML     : "${SAMPLE_YML-""}
 
 echo "RSCRIPTS_DIR   : "${RSCRIPTS_DIR-""}
 echo "GENESET_DIR    : "${GENESET_DIR-""}
-echo "SPECIES        : "${SPECIES-""}
-echo "RERUN_STAGE    : "${RERUN_STAGE-""}
-echo "AB_ASSAY_NAME  : "${AB_ASSAY_NAME-""}
-echo "NODEREQS       : "${NODEREQS-""}
-echo "MEMREQS        : "${MEMREQS-""}
 
 echo "LOGDIR         : "${LOGDIR}
 echo "NODEREQS       : "${NODEREQS}
@@ -95,12 +80,9 @@ echo -e "\n"
 
 export_vars="\
 SAMPLE_YML=$(readlink -e ${SAMPLE_YML}),\
-OUT_FOLDER=$(readlink -e ${OUT_FOLDER}),\
+WORKING_FOLDER=$(readlink -e ${WORKING_FOLDER}),\
 RSCRIPTS_DIR=$(readlink -e ${RSCRIPTS_DIR}),\
-GENESET_DIR=$(readlink -e ${GENESET_DIR}),\
-SPECIES=${SPECIES},\
-RERUN_STAGE=${RERUN_STAGE},\
-AB_ASSAY_NAME=${AB_ASSAY_NAME}"
+GENESET_DIR=$(readlink -e ${GENESET_DIR})"
 
 UUID=`randomstr 10`
 

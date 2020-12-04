@@ -46,8 +46,10 @@ demux_by_inflexions <- function(sobj, sample_names, inflexions=NULL, visual_outl
   ##             HTO pair.
   ##         scaled_plots : A list of plots of scaled HTO counts in a similar
   ##             form as `raw_plots` but only below the diagonal.
-  ##         cell_ids : a vector of identities, one for each cell in the input assay,
-  ##             in the same cell order as the assay provided.
+  ##         cell_ids : a vector of NEGATIVE, or the sample name(s) per cell, in the  
+  ##             same cell order as the assay provided.
+  ##         droplet_type : One of NEGATIVE, SINGLET. or DOUBLET for each cell in the 
+  ##             same cell order as the assay provided.
   ##         summary : A summary of the number and percent of cells identified as either an
   ##             expected sample, or as a MULTIPLET, or as NEGATIVE for all HTOs.
   ##         colors : named chr of colors used in the plots. Can be used to
@@ -61,6 +63,7 @@ demux_by_inflexions <- function(sobj, sample_names, inflexions=NULL, visual_outl
     raw_plots = NULL,
     scaled_plots = NULL,
     cell_ids = NULL,
+    cell_ids_verbose = NULL,
     summary = NULL,
     colors = NULL
   )
@@ -157,12 +160,19 @@ demux_by_inflexions <- function(sobj, sample_names, inflexions=NULL, visual_outl
     clusters[clusters[[`sample`]], `sample`] <- sample_names[`sample`]
   }
   
-  clusters$sample_name <- apply(clusters, 1, function(x) {
-    ifelse(sum(x!=FALSE)==0, 'NEGATIVE', ifelse(sum(x!=FALSE)==1, x[x!=FALSE], 'MULTIPLET'))
+  clusters$sample_names <- apply(clusters, 1, function(x) {
+    ifelse(sum(x!=FALSE)==0, 'NEGATIVE', paste(x[x!=FALSE], collapse=':'))
     })
+
+  clusters$droplet_type <- clusters$sample_names
+  clusters$droplet_type[grepl(':', clusters$droplet_type)] = 'MULTIPLET'
+  clusters$droplet_type[!clusters$droplet_type %in% c('NEGATIVE', 'MULTIPLET')] = 'SINGLET'
+
+  clusters$singlet_name <- clusters$sample_names
+  clusters$singlet_name[grepl(':', clusters$singlet_name)] = 'MULTIPLET'
   
-  raw_hashes$sample_name <- factor(clusters$sample_name, levels=c(sample_names, 'NEGATIVE', 'MULTIPLET'))
-  scaled_hashes$sample_name <- factor(clusters$sample_name, levels=c(sample_names, 'NEGATIVE', 'MULTIPLET'))
+  raw_hashes$sample_name <- factor(clusters$singlet_name, levels=c(sample_names, 'NEGATIVE', 'MULTIPLET'))
+  scaled_hashes$sample_name <- factor(clusters$singlet_name, levels=c(sample_names, 'NEGATIVE', 'MULTIPLET'))
   
   raw_plots <- rep(list(list()), l)
   scaled_plots <- rep(list(list()), l)
@@ -232,7 +242,8 @@ demux_by_inflexions <- function(sobj, sample_names, inflexions=NULL, visual_outl
   results[['raw_plots']] <- raw_plots
   results[['scaled_plots']] <- scaled_plots
   
-  results[['cell_ids']] <- clusters$sample_name
+  results[['cell_ids']] <- clusters$sample_names
+  results[['droplet_type']] <- clusters$droplet_type
   results[['colors']] <- sample_colors
   
   return(results)
