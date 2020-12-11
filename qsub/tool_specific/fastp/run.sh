@@ -24,20 +24,30 @@ getExtension() {
       fi
 }
 
-extension=`getExtension ${FQ1}`
 
+if [ "${ADAPTERSEQ}" == "NEXTERA" ]
+then
+    ADAPTERSEQ_STRING="CTGTCTCTTATACACATCT"
+elif [ "${ADAPTERSEQ}" == "TRUSEQ" ]
+then
+    ADAPTERSEQ_STRING="AGATCGGAAGAG"
+else
+    ADAPTERSEQ_STRING=${ADAPTERSEQ}
+fi
+
+extension=`getExtension ${FQ1}`
 FQ2argstring=" "
 if [ $(basename ${FQ2}) != "EMPTY" ]
 then
       FQ2argstring="-I ${FQ2} \
                     -O `basename ${FQ2%${extension}}`_trimmed${extension} \
-                    --adapter_sequence_r2 CTGTCTCTTATACACATCT \
+                    --adapter_sequence_r2 ${ADAPTERSEQ_STRING} \
                     --correction "
 fi
 
 fastp -i ${FQ1} \
       -o `basename ${FQ1%${extension}}`_trimmed${extension} \
-      --adapter_sequence CTGTCTCTTATACACATCT \
+      --adapter_sequence ${ADAPTERSEQ_STRING} \
       ${FQ2argstring} \
       --length_required 20 \
       --trim_poly_g  \
