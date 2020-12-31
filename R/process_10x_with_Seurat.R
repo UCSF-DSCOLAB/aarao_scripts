@@ -323,6 +323,10 @@ if (file.exists("Rplots.pdf")){
   remove_rplots <- FALSE
 }
 
+#############################
+### Begin Collecting Data ###
+#############################
+
 sobjs <- list()
 for (s in names(samples)){
   cat(paste0("Processing sample `", s, "`.\n"))
@@ -427,6 +431,10 @@ for (s in names(samples)){
               dir.create(samples[[s]]$OUT_FOLDER, showWarnings=TRUE)
             }
 
+            ########################################
+            ### Start creating the Seurat object ###
+            ########################################
+            
             cat(paste0('LOG: Reading `GEX_datadir` ...\n'))
             data <- Read10X(data.dir=GEX_datadir)
 
@@ -515,7 +523,8 @@ for (s in names(samples)){
               cat('LOG: No `ADT_datadir` specified for this sample.\n')
             }
 
-
+            ### Create QC and cell cycle metadata
+            
             # store mitochondrial percentage in object metadata
             sobjs[[s]] <- PercentageFeatureSet(sobjs[[s]],
                                                pattern = species_args[[samples[[s]]$SPECIES]]$mito_regex,
@@ -555,6 +564,8 @@ for (s in names(samples)){
                                                          samples[[s]]$IDX_ASSAY_NAME, 
                                                          samples[[s]]$ADT_ASSAY_NAME)))
 
+            ### Make NA by default cutoffs
+            
             cutoffs = list()
             for (hl in c('high', 'low')){
               for (feature in c('percent.mt', 'percent.ribo')){
@@ -579,6 +590,8 @@ for (s in names(samples)){
               cutoffs[["BEST.GUESS.keep"]] = NA
             }
 
+            ### Save the fully ready raw objects
+            
             writeLines(colnames(sobjs[[s]]), con=paste0(samples[[s]]$OUT_FOLDER, '/', "barcodes_of_interest.list"))
 
             write_yaml(cutoffs, file=paste0(samples[[s]]$OUT_FOLDER, '/', "cutoffs.yml"))
@@ -587,10 +600,11 @@ for (s in names(samples)){
             save(list=s, file=paste0(samples[[s]]$OUT_FOLDER, '/', s, "_raw.RData"))
             next
           } else {
+            ### Previously created raw objects found and will be used.
             print(paste0("Using existing `", s, "_raw.RData`."))
             load(paste0(samples[[s]]$OUT_FOLDER, '/', s, "_raw.RData"))
             sobjs[[s]] <- get(s)
-          }  # END STAGE 1
+          }  # END STAGE 1 (raw object creation)
           rm(list=s)
           print(paste0("Generating `", s, "_filtered.RData` ..."))
           if (!file.exists(paste0(samples[[s]]$OUT_FOLDER, '/', "cutoffs.yml"))) {
