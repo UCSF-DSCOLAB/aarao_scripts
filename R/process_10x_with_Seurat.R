@@ -600,23 +600,32 @@ for (s in names(samples)){
             save(list=s, file=paste0(samples[[s]]$OUT_FOLDER, '/', s, "_raw.RData"))
             next
           } else {
+              
             ### Previously created raw objects found and will be used.
             print(paste0("Using existing `", s, "_raw.RData`."))
             load(paste0(samples[[s]]$OUT_FOLDER, '/', s, "_raw.RData"))
             sobjs[[s]] <- get(s)
-          }  # END STAGE 1 (raw object creation)
+          } # END STAGE 1 (raw object creation)
+
+          ###########
+          # Stage 2 = Filter and "pre-process" (normalize / scale) the data
+          ###########
+          # Before continuing, user should make a cutoffs.yml to set how cells are filtered
+
           rm(list=s)
           print(paste0("Generating `", s, "_filtered.RData` ..."))
           if (!file.exists(paste0(samples[[s]]$OUT_FOLDER, '/', "cutoffs.yml"))) {
             print("Cannot continue without a cutoffs.yml file in the output directory")
             next
           }
+          ## Read cutoffs.yml and initialize some variables for usinng it.
           cutoffs <- read_yaml(paste0(samples[[s]]$OUT_FOLDER, '/', "cutoffs.yml"))
           # Filter cells with high mito content (dying/dead cells)
           keep_rownames = rep(TRUE, dim(sobjs[[s]]@meta.data)[1])
           total_cells = c(dim(sobjs[[s]]@meta.data)[1], 100)
           additional_text = ""
 
+          ### Interpret & validate the cutoffs
           for (filter_key in names(cutoffs)){
             filter_feature = strsplit(filter_key, split = ".",
                                       fixed = TRUE)[[1]]
@@ -633,11 +642,14 @@ for (s in names(samples)){
                                               "be of the form `feature.high`, ",
                                               "`feature.low`, or `feature.keep`. ",
                                               "Got ", filter_key))
+            # Skip to next cutoff if if this one's target is not part of the data.
             if (!filter_feature %in% colnames(sobjs[[s]]@meta.data)){
               print(paste0("Could not find ", filter_feature, " in the metadata ",
                            "for ", s))
               next
             }
+            
+            # Process cutoff by changing TRUEs to FALSE in 'keep_rownames' whenever a filter is not met.
             if(!is.na(cutoffs[[filter_key]])){
               if (filter_cat == "high") {
                 keep_rownames <- keep_rownames & sobjs[[s]]@meta.data[[filter_feature]] <= cutoffs[[filter_key]]
@@ -673,8 +685,13 @@ for (s in names(samples)){
                        round(sum(keep_rownames)/length(keep_rownames) *100, 2),
                        "%)."))
 
+          # Actually perform the per-cell trimming. 
           sobjs[[s]] <- subset(sobjs[[s]],
                                cells = rownames(sobjs[[s]]@meta.data[keep_rownames, ]))
+          
+          # Perform per-feature trimming
+            # Keep all for non gene expression
+            # Remove genes from gene expression captured in fewer than 3 cells. 
           keep_features <- c()
           for (assay in names(sobjs[[s]]@assays)){
             if (assay == "RNA"){
@@ -687,8 +704,10 @@ for (s in names(samples)){
                        (length(rownames(sobjs[[s]]@assays$RNA@counts)) -
                         length(keep_genes)),
                        " genes for being in fewer than 3 cells"))
+          # Actually perform the per-feature trimming.
           sobjs[[s]] <- subset(sobjs[[s]], features = c(keep_genes, keep_features))
 
+          # QC plots
           plot_all_profiles(sobjs[[s]],
                             out_prefix=paste0(samples[[s]]$OUT_FOLDER, '/', s, "_dualscatter_post"),
                             plot_extra=TRUE,
@@ -709,7 +728,8 @@ for (s in names(samples)){
               temp <- paste(sort(unique(strsplit(x, ',')[[1]])), collapse='_')
               }))
           }
-
+          
+          ### "Pre-processing"
           # Now that we"ve removed bogus cells, let's normalize the counts (if present)
           if (samples[[s]]$IDX_ASSAY_NAME %in% names(sobjs[[s]]@assays)){
             sobjs[[s]] <- NormalizeData(sobjs[[s]], assay = samples[[s]]$IDX_ASSAY_NAME,
@@ -728,7 +748,12 @@ for (s in names(samples)){
           print(paste0("Using existing `", s, "_filtered.RData`."))
           load(paste0(samples[[s]]$OUT_FOLDER, '/', s, "_filtered.RData"))
           sobjs[[s]] <- get(s)
-        }  # END STAGE 2
+        } # END STAGE 2
+        
+        ###############
+        # Stage 3 = Map hash tags into sample annotations, plot QC, and trim insufficiently-tagged cells. 
+        ###############
+        # Need an IDX_map.tsv file to continue.
         rm(list=s)
         if (samples[[s]]$IDX_ASSAY_NAME %in% names(sobjs[[s]]@assays)){
           print(paste0("Generating `", s, "_filtered_singlets.RData` ..."))
@@ -741,19 +766,26 @@ for (s in names(samples)){
           suppmgg <- assert_that(all('sample_name' %in% colnames(IDX_map)),
                                  msg="IDX_map.tsv must have a column named `sample_name`")
           # Hacky but it works ¯\_(ツ)_/¯
+          # Outputs = a list where names are the columns of IDX_map.tsv and where
+          #   values of these are the values of those columns &
+          #   names of those values are the rownames of IDX_map.tsv (the indexes)
           IDX_map <- sapply(colnames(IDX_map), function(x) {
                               y = IDX_map[,x, drop=T]
                               names(y) = rownames(IDX_map)
                               y
                               }, simplify = FALSE, USE.NAMES = TRUE)
           sample_names <- names(IDX_map$sample_name)
+          # 'samples_names' is now actually the idx's!
           sample_names <- sample_names[!sample_names %in% c("NEGATIVE", "MULTIPLET", "OTHER")]
+          # Check that all intended IDX were captured.
           suppmgg <- assert_that(all(sample_names %in% rownames(sobjs[[s]]@assays[[samples[[s]]$IDX_ASSAY_NAME]])),
                                  msg="Not all hashtags in IDX_map.tsv are in the seurat object")
+          # Remove all other IDX
           keep_features <- c(rownames(sobjs[[s]]@assays$RNA),
                              sample_names)
           sobjs[[s]] <- subset(sobjs[[s]], features = keep_features)
 
+          ## Prep for IDX expression-level thresholding.
           if ("threshold" %in% names(IDX_map)){
             inflexions <- IDX_map$threshold[sample_names]
             if (any(is.na(inflexions))){
@@ -783,12 +815,14 @@ for (s in names(samples)){
             sample_colors <- NULL
           }
 
+          # Determine, and make QC plots for, IDX thresholding based on inflexions.
           demux_results <- demux_by_inflexions(sobjs[[s]],
                                                sample_names=IDX_map$sample_name[sample_names],
                                                inflexions=inflexions,
                                                sample_colors=sample_colors,
                                                assay_name=samples[[s]]$IDX_ASSAY_NAME)
 
+          # Save plots
           nplots <- length(demux_results$background_plots)
 
           png(paste0(samples[[s]]$OUT_FOLDER, '/', s, "_raw_hto_pairplots.png"), width=nplots*750,
@@ -806,14 +840,17 @@ for (s in names(samples)){
           print(plot_grid(plotlist=demux_results[['background_plots']], ncol=2))
           dev.off()
 
+          # Transfer IDX calls into the Seurat object as metadata
           sobjs[[s]]@meta.data$SAMPLE.by.ABs <- demux_results$cell_ids
           sobjs[[s]]@meta.data$DROPLET.TYPE.by.ABs <- demux_results$droplet_type
 
+          # Save these metadata as a tsv.
           IDX_metadata <- sobjs[[s]]@meta.data[, c('SAMPLE.by.ABs', 'DROPLET.TYPE.by.ABs')]
           write.table(IDX_metadata,
                       file=paste0(samples[[s]]$OUT_FOLDER, '/', s, "_filtered_IDX_calls.tsv"),
                       quote=FALSE, row.names=TRUE, col.names=TRUE, sep="\t")
 
+          # Also save the inflexion points used, secondary inflexion options, and summary output.
           drf <- data.frame(sample_name=unlist(IDX_map$sample_name[sample_names]),
                   threshold=demux_results[['inflexions']])
           write.table(drf, file=paste0(samples[[s]]$OUT_FOLDER, '/', "IDX_map_generated.tsv"),
@@ -825,20 +862,26 @@ for (s in names(samples)){
           write.table(demux_results[["summary"]], file=paste0(samples[[s]]$OUT_FOLDER, '/', "IDX_summary.tsv"),
                       quote=FALSE, row.names=TRUE, col.names=TRUE, sep="\t")
 
+          # Overwrite sample call (SAMPLE.by.ABs) for cells called a multiplet (in DROPLET.TYPE.by.ABs) as 'MULTIPLET'
           sobjs[[s]]$temp <- sobjs[[s]]$SAMPLE.by.ABs
           sobjs[[s]]$temp[sobjs[[s]]$DROPLET.TYPE.by.ABs == 'MULTIPLET'] = 'MULTIPLET'
+          # Set sample calls as the clusters of the object.
           sobjs[[s]]$temp <- factor(sobjs[[s]]$temp, levels = c('NEGATIVE', 
                                                                 unname(sort(IDX_map$sample_name)),
                                                                 'MULTIPLET'))
           Idents(sobjs[[s]]) <- sobjs[[s]]$temp
           sobjs[[s]]$temp <- NULL
+          # Plot the IDX expression (features, will be separate plots/facets for each)
+          # per sample (clustering is the default grouping variable for Seurat::RidgePlot)
           png(paste0(samples[[s]]$OUT_FOLDER, '/', s, '_ridgeplot.png'), width=1500,
               height=ceiling(length(sample_names)/2)*750, units = 'px')
           print(RidgePlot(sobjs[[s]],
                           assay=samples[[s]]$IDX_ASSAY_NAME,
-                          features=sample_names,
+                          features=sample_names, # These are still actually the IDXs
                           ncol = 2))
           dev.off()
+          
+          # Trim to ONLY IDX-singlets.
           sobjs[[s]] <- subset(sobjs[[s]],
                                cells=colnames(sobjs[[s]])[sobjs[[s]]$DROPLET.TYPE.by.ABs == 'SINGLET'])
           # This will just become SINGLET. drop it to reduce object size
@@ -860,6 +903,10 @@ for (s in names(samples)){
         load(paste0(samples[[s]]$OUT_FOLDER, '/', s, "_filtered_singlets.RData"))
         sobjs[[s]] <- get(s)
       }  # END STAGE 3
+
+      ###############
+      # Stage 4 = Run SCTransform normalization and use that for running PCA.
+      ###############
       rm(list=s)
       print(paste0("Generating `", s, "_scTransformed.RData` ..."))
       sobjs[[s]] <- SCTransform(sobjs[[s]],
@@ -882,6 +929,10 @@ for (s in names(samples)){
       load(paste0(samples[[s]]$OUT_FOLDER, '/', s, "_scTransformed.RData"))
       sobjs[[s]] <- get(s)
     }  # END STAGE 4
+
+    ###############
+    # Stage 5 = Run UMAP & Clustering on PCs 1:30 from stage 4, then output final automated plots.
+    ###############
     rm(list=s)
     print(paste0("Generating `", s, "_scTransformed_processed.RData`..."))
     sobjs[[s]] <- RunUMAP(sobjs[[s]],
