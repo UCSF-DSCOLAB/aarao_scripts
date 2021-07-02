@@ -4,6 +4,7 @@ do
     rm -rf ihg-client.ucsf.edu/${ihg_username}/
     IHGUSERNAME=${ihg_username} source /krummellab/data1/immunox/staging/auth_source.sh
     wget --spider \
+         --no-check-certificate \
          -r \
          -l 1 \
          -R "index.html*" \
