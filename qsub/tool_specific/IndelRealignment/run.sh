@@ -4,7 +4,8 @@ set -o nounset
 
 module load CBC gatk/${GATKVERSION}
 
-mkdir /scratch/${USER}/IndelRealignment_${SAMPLE} && cd /scratch/${USER}/IndelRealignment_${SAMPLE} 
+mkdir /scratch/${USER}/IndelRealignment_${SAMPLE}
+cd /scratch/${USER}/IndelRealignment_${SAMPLE} 
 trap "{ rm -rf /scratch/${USER}/IndelRealignment_${SAMPLE} /scratch/${USER}/${SAMPLE}_javatmp ; }" EXIT
 
 extension=${SAMFILE##*.}

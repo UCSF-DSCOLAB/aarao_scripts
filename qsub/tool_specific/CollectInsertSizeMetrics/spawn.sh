@@ -38,7 +38,13 @@ echo -e "\n"
 
 MEMORY=`echo "$(echo ${MEMREQS} | sed 's/[^0-9]*//g')*0.9 / 1" | bc`
 
-qsub -v "SAMFILE=$(readlink -f ${SAMFILE}),SAMPLE=${SAMPLE},MEMORY=${MEMORY},GATKVERSION=${GATKVERSION}" \
+export_vars="\
+SAMFILE=$(readlink -f ${SAMFILE}),\
+SAMPLE=${SAMPLE},\
+MEMORY=${MEMORY},\
+GATKVERSION=${GATKVERSION}"
+
+qsub -v ${export_vars} \
      -e ${LOGDIR}/ISizeMetrics_${SAMPLE}_$(date "+%Y_%m_%d_%H_%M_%S").err \
      -o ${LOGDIR}/ISizeMetrics_${SAMPLE}_$(date "+%Y_%m_%d_%H_%M_%S").out \
      -N ISizeMetrics_${SAMPLE} \

@@ -10,15 +10,16 @@ set -o nounset
 
 module load CBC gatk/${GATKVERSION}   
 
-mkdir /scratch/${USER}/ISizeMetrics_${SAMPLE} && cd /scratch/${USER}/ISizeMetrics_${SAMPLE} 
+mkdir /scratch/${USER}/ISizeMetrics_${SAMPLE}
+cd /scratch/${USER}/ISizeMetrics_${SAMPLE} 
 trap "{ rm -rf /scratch/${USER}/ISizeMetrics_${SAMPLE} /scratch/${USER}/${SAMPLE}_javatmp ; }" EXIT
 
-
+extension=${SAMFILE##*.}
 out_dir=$(dirname ${SAMFILE})
 gatk --java-options "-Djava.io.tmpdir=/scratch/${USER}/${SAMPLE}_javatmp -Xmx${MEMORY}g" \
    CollectInsertSizeMetrics \
    -I ${SAMFILE} \
-   -O insert_size_metrics.txt \
-   -H insert_size_histogram.pdf
+   -O $(basename ${SAMFILE%.${extension}})_insert_size_metrics.txt \
+   -H $(basename ${SAMFILE%.${extension}})_insert_size_histogram.pdf
 
-mv /scratch/${USER}/ISizeMetrics_${SAMPLE}/insert_size_metrics* ${out_dir}/
+mv /scratch/${USER}/ISizeMetrics_${SAMPLE}/$(basename ${SAMFILE%.${extension}})_insert* ${out_dir}/

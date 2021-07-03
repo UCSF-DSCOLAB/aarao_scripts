@@ -4,7 +4,8 @@ set -o nounset
 
 module load CBC gatk/${GATKVERSION}
 
-mkdir /scratch/${USER}/BQSR_${SAMPLE} && cd /scratch/${USER}/BQSR_${SAMPLE} 
+mkdir /scratch/${USER}/BQSR_${SAMPLE}
+cd /scratch/${USER}/BQSR_${SAMPLE} 
 trap "{ rm -rf /scratch/${USER}/BQSR_${SAMPLE} /scratch/${USER}/${SAMPLE}_javatmp ; }" EXIT
 
 extension=${SAMFILE##*.}

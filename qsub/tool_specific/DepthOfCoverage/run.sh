@@ -3,7 +3,8 @@ set -e
 set -o nounset
 module load CBC gatk/${GATKVERSION}
 
-mkdir /scratch/${USER}/DepthOfCoverage_${SAMPLE} && cd /scratch/${USER}/DepthOfCoverage_${SAMPLE} 
+mkdir /scratch/${USER}/DepthOfCoverage_${SAMPLE}
+cd /scratch/${USER}/DepthOfCoverage_${SAMPLE} 
 trap "{ rm -rf /scratch/${USER}/DepthOfCoverage_${SAMPLE} /scratch/${USER}/${SAMPLE}_javatmp ; }" EXIT
 
 out_dir=$(dirname ${SAMFILE})
@@ -15,7 +16,9 @@ else
     INTERVALSTRING="--intervals ${INTERVALFILE}"
 fi
 
-java -Djava.io.tmpdir=/scratch/${USER}/${SAMPLE}_javatmp -Xmx${MEMORY}g -jar $GATK_HOME/GenomeAnalysisTK.jar \
+java -Djava.io.tmpdir=/scratch/${USER}/${SAMPLE}_javatmp \
+    -Xmx${MEMORY}g \
+    -jar $GATK_HOME/GenomeAnalysisTK.jar \
     -T DepthOfCoverage \
     -I ${SAMFILE} \
     ${INTERVALSTRING} \
