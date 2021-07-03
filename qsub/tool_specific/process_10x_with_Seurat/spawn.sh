@@ -41,7 +41,7 @@ if [[ ! "${RECEIVED_NAMED_ARGS[@]}" =~ "WORKING_FOLDER" ]]
 then
     WORKING_FOLDER="TMPDIR"
 else
-    if [ ! -f ${WORKING_FOLDER} ]
+    if [ ! -d ${WORKING_FOLDER} ]
     then
        echo -e "\nERROR: WORKING_FOLDER does not exist: ${WORKING_FOLDER}\n" 
     fi
@@ -51,7 +51,7 @@ if [[ ! "${RECEIVED_NAMED_ARGS[@]}" =~ "RSCRIPTS_DIR" ]]
 then
     RSCRIPTS_DIR="${SCRIPTS}/R"
 else
-    if [ ! -f ${RSCRIPTS_DIR} ]
+    if [ ! -d ${RSCRIPTS_DIR} ]
     then
        echo -e "\nERROR: RSCRIPTS_DIR does not exist: ${RSCRIPTS_DIR}\n" 
     fi
@@ -61,7 +61,7 @@ if [[ ! "${RECEIVED_NAMED_ARGS[@]}" =~ "GENESET_DIR" ]]
 then
     GENESET_DIR="/krummellab/data1/ipi/data/refs/10x/genesets"
 else
-    if [ ! -f ${GENESET_DIR} ]
+    if [ ! -d ${GENESET_DIR} ]
     then
        echo -e "\nERROR: GENESET_DIR does not exist: ${GENESET_DIR}\n" 
     fi
