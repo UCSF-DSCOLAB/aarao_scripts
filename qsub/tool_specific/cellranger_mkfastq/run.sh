@@ -5,6 +5,7 @@ set -o nounset
 source /krummellab/data1/${USER}/aarao_scripts/bash/essentials.sh
 uuid=`randomstr 10`
 
+module load CBC bcl2fastq/2.20.0
 source /krummellab/data1/ipi/software/cellranger/usr/SOURCE_THIS
 
 mkdir -p /scratch/${USER}/cellranger_mkfastq_${FLOWCELLID}_${uuid}/working  /scratch/${USER}/cellranger_mkfastq_${FLOWCELLID}_${uuid}/working
@@ -24,6 +25,7 @@ echo "cellranger-${CELLRANGERVERSION} mkfastq --csv=${SAMPLESHEET} \
                    --run=${BCLDIR} \
                    --barcode-mismatches=${BARCODEMISMATCHES} \
                    ${lanes_argstring} \
+                   --force-single-index \
                    --output-dir=${fastq_dir} \
                    --localcores=${PBS_NUM_PPN} \
                    --localmem=${MEMORY} "
@@ -32,6 +34,7 @@ cellranger-${CELLRANGERVERSION} mkfastq --csv=${SAMPLESHEET} \
                    --run=${BCLDIR} \
                    --barcode-mismatches=${BARCODEMISMATCHES} \
                    ${lanes_argstring} \
+                   --force-single-index \
                    --output-dir=${fastq_dir} \
                    --localcores=${PBS_NUM_PPN} \
                    --localmem=${MEMORY}

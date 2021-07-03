@@ -13,10 +13,10 @@ EOF
 
 read -r -d '' LOCAL_OPTIONAL_HELPTEXT  << EOF || true
 ## OPTIONAL PARAMETERS ##
-CELLRANGERVERSION  : The version of cellranger to use (3.0.2)
-NODEREQS           : Default node requirements (default: nodes=1:ppn=32)[overrides global default]
-MEMREQS            : Default mem requirements (default: vmem=250gb)[overrides global default]
-REFERENCE          : Path to 10X Indexes (default: /krummellab/data1/ipi/data/refs/10x/GRCh38_VDJ)
+CELLRANGERVERSION  : The version of cellranger to use (4.0.0)
+NODEREQS           : Default node requirements (default: nodes=1:ppn=12)[overrides global default]
+MEMREQS            : Default mem requirements (default: vmem=100gb)[overrides global default]
+REFERENCE          : Path to 10X Indexes (default: /krummellab/data1/ipi/data/refs/10x/GRCh38_VDJ/4.0.0)
 CHAIN              : Chain to process [TR/IG/auto/all] (default: auto)
 EOF
 
@@ -28,7 +28,7 @@ fi
 
 if [[ ! "${RECEIVED_NAMED_ARGS[@]}" =~ "CELLRANGERVERSION" ]]
 then
-    CELLRANGERVERSION="3.0.2"
+    CELLRANGERVERSION="4.0.0"
 else
     allowed=("3.0.2" "3.1.0" "4.0.0")
     if [[ ! "${allowed[@]}" =~ "${CELLRANGERVERSION}" ]]
@@ -41,18 +41,18 @@ fi
 # Override default NODEREQS and MEMREQS only if the user hasn't specified
 if [[ ! "${RECEIVED_NAMED_ARGS[@]}" =~ "NODEREQS" ]]
 then
-    NODEREQS="nodes=1:ppn=32"
+    NODEREQS="nodes=1:ppn=12"
 fi
 
 if [[ ! "${RECEIVED_NAMED_ARGS[@]}" =~ "MEMREQS" ]]
 then
-    MEMREQS="vmem=250gb"
+    MEMREQS="vmem=100gb"
 fi
 
 
 if [[ ! "${RECEIVED_NAMED_ARGS[@]}" =~ "REFERENCE" ]]
 then
-    REFERENCE=/krummellab/data1/ipi/data/refs/10x/GRCh38_VDJ
+    REFERENCE=/krummellab/data1/ipi/data/refs/10x/GRCh38_VDJ/4.0.0
 else
     if [ ! -f ${REFERENCE} ]
     then
