@@ -18,6 +18,7 @@ BWAREF    : A path to a bwa reference (default=/krummellab/data1/ipi/data/refs/b
 RGID      : Read Group ID (default=PARSED_FROM_1ST_READ to be FLOWCELL_ID.LANE_NUM)
 RGPL      : Read Group Platform (default=ILLUMINA)
 RGSM      : Read Group Sample (default=<SAMPLE>)
+RGLB      : Read Group Library (default=<SAMPLE>_1)
 RGPU      : Read Group Platform Unit (default=PARSED_FROM_1ST_READ to be FLOWCELL_ID.LANE_NUM)
 RGBC      : Read Group Barcode (default=PARSED_FROM_1ST_1000_READS and warns if < 75% are concordant)
 EOF
@@ -49,6 +50,12 @@ then
     RGSM="EMPTY"
 fi
 
+if [ ${RGLB-"EMPTY"} == "EMPTY" ]
+then
+    RGLB="EMPTY"
+fi
+
+
 if [ ${RGPU-"EMPTY"} == "EMPTY" ]
 then
     RGPU="EMPTY"
@@ -69,6 +76,7 @@ echo "OUTDIR   : "${OUTDIR-""}
 echo "RGID     : "${RGID-""}
 echo "RGPL     : "${RGPL-""}
 echo "RGSM     : "${RGSM-""}
+echo "RGLB     : "${RGLB-""}
 echo "RGPU     : "${RGPU-""}
 echo "RGBC     : "${RGBC-""}
 
@@ -92,6 +100,7 @@ BWAREF=$(readlink -f ${BWAREF}),\
 RGID=${RGID},\
 RGPL=${RGPL},\
 RGSM=${RGSM},\
+RGLB=${RGLB},\
 RGPU=${RGPU},\
 RGBC=${RGBC}" \
      -e ${LOGDIR}/bwa_${SAMPLE}_$(date "+%Y_%m_%d_%H_%M_%S").err \

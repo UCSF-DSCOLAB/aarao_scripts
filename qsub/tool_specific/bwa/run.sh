@@ -46,6 +46,12 @@ then
     RGSM=${RG_items[2]}
 fi
 
+if [ ${RGLB} == "EMPTY" ]
+then
+    RGLB=${RG_items[2]}_1
+fi
+
+
 if [ ${RGPU} == "EMPTY" ]
 then
     RGPU=${RG_items[3]}
@@ -56,7 +62,7 @@ then
     RGBC=${RG_items[4]}
 fi
 
-RG="@RG\\tID:"$RGID"\\tPL:${RGPL}\\tSM:${RGSM}\\tPU:${RGPU}\\tBC:${RGBC}"
+RG="@RG\\tID:"$RGID"\\tPL:${RGPL}\\tSM:${RGSM}\\tLB:${RGLB}\\tPU:${RGPU}\\tBC:${RGBC}"
 
 
 if [ $(basename ${FQ2}) == "EMPTY" ]
