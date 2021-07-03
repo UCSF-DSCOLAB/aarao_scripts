@@ -1,0 +1,16 @@
+[package]
+name = "fastq_stripper"
+version = "0.0.1"
+authors = ["Arjun Arkal Rao <arjunarkal.rao@ucsf.edu>"]
+edition = "2018"
+
+[dependencies]
+bio = "*"
+docopt = "*"
+serde = "*"
+flate2 = "*"
+failure = "*"
+
+[profile.release]
+debug = 1
+lto = true

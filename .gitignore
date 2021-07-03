@@ -2,3 +2,6 @@
 !/.gitignore
 *.pyc
 **/template_generated
+rust/*/cargo_home
+rust/*/target
+Cargo.lock
