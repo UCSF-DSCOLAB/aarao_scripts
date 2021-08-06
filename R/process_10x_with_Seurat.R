@@ -83,6 +83,12 @@ defaultArgs = list(
     class=as.character,
     description="Normalization method to use for the `ADT_ASSAY_NAME` assay",
     global=FALSE
+  ),
+  UNMERGE_AB_PANEL_CSV=list(
+    value=NA,
+    class=as.character,
+    description="A csv describing how an antibody assay should be split (Used if IDX and ADT are both conducted)",
+    global=FALSE
   )
 )
 
@@ -177,7 +183,11 @@ SAMPLE_YML : "
             "NOTE:\n",
             "1. If `OUT_FOLDER` is not provided for a sample in in `SAMPLE_YML`, the deafult behaviour is\n",
             "   to use `OUT_DIR/SAMPLE_NAME`, else it is used as-is.\n",
-            "2. doublet detection using DoubletFinder is not yet implemented.\n\n"))
+            "2. doublet detection using DoubletFinder is not yet implemented.\n",
+            "3. `UNMERGE_AB_PANEL_CSV` must have at least 3 columns, 'id', 'ASSAY_FROM', and 'ASSAY_TO' where\n",
+            "   `ASSAY_FROM` can only have one value and that assay must be in the object. `id` must identical \n",
+            "   to the 'id' column in the `feature_reference.csv` file for the assay `ASSAY_FROM`. Ideally, just\n",
+            "   copy `feature_reference.csv` and add `ASSAY_FROM` and `ASSAY_TO`\n\n"))
   quit(save="no")
 }
 
@@ -227,6 +237,7 @@ cat(paste0("IDX_ASSAY_NAME            : ", args$IDX_ASSAY_NAME, '\n'))
 cat(paste0("ADT_ASSAY_NAME            : ", args$ADT_ASSAY_NAME, '\n'))
 cat(paste0("IDX_NORMALIZATION_METHOD  : ", args$IDX_NORMALIZATION_METHOD, '\n'))
 cat(paste0("ADT_NORMALIZATION_METHOD  : ", args$ADT_NORMALIZATION_METHOD, '\n'))
+cat(paste0("UNMERGE_AB_PANEL_CSV      : ", args$UNMERGE_AB_PANEL_CSV, '\n'))
 cat("\n")
 
 if (is.null(args$SAMPLE_YML)) {
@@ -246,7 +257,7 @@ species_args <- list(
     ),
   mouse=list(
     vars_to_regress = c("percent.mt", "percent.ribo", "S.Score", "G2M.Score"),
-    mito_regex = "^Mt-",
+    mito_regex = "^mt-",
     reference_dir = paste(args$GENESET_DIR,"GRCm38", sep="/"),
     CD45 = "Ptprc"
     )
@@ -277,7 +288,6 @@ for (s in names(samples)){
     } else if (k %in% global_args){
       cat(paste0('WARNING: Ignoring provided run-wide parameter `', k, '`.\n'))
       samples[[s]][[k]] <- NULL
-      next
     } else {
       stop(paste0('Received unknown argument in `SAMPLE_YML`.', k))
     }
@@ -315,7 +325,6 @@ for (s in names(samples)){
   }  
 }
 cat('`SAMPLE_YML` looks OK!\n\n')
-
 
 remove_rplots <- TRUE
 if (file.exists("Rplots.pdf")){
@@ -443,6 +452,17 @@ for (s in names(samples)){
               secondary_assayobj <- CreateAssayObject(counts = data$`Antibody Capture`)
               sobjs[[s]][[samples[[s]]$SECONDARY_ASSAY_NAME]] <- subset(secondary_assayobj, cells=colnames(sobjs[[s]]))
               rm(secondary_assayobj)
+              if (file.exists(file.path(samples[[s]]$GEX_datadir, 'feature_reference.csv'))){
+                cat('LOG: Found `feature_reference.csv` in `GEX_datadir`. Adding feature IDs into the metadata.\n')
+                temp_table <- read.table(file.path(samples[[s]]$GEX_datadir, 'feature_reference.csv'), sep=',', header=T, row.names=NULL, stringsAsFactors=F)
+                if (! all(rownames(sobjs[[s]][[samples[[s]]$SECONDARY_ASSAY_NAME]]) == make.unique(gsub('_', '-', temp_table$name)))){
+                  cat('ERROR: `name`s in `feature_reference.csv` do not match those in the object.\n')
+                  next
+                }
+                sobjs[[s]][[samples[[s]]$SECONDARY_ASSAY_NAME]]@meta.features$ID = temp_table$id
+                sobjs[[s]][[samples[[s]]$SECONDARY_ASSAY_NAME]]@meta.features$ID.concise = unname(sapply(temp_table$id, function(x){strsplit(x, '--')[[1]][1]}))
+                rm(temp_table)
+              }
             } else {
               sobjs[[s]] <- CreateSeuratObject(counts = data,
                                                project = s,
@@ -461,7 +481,7 @@ for (s in names(samples)){
 
             if (!is.null(samples[[s]][['IDX_datadir']])){
               cat(paste0('LOG: Reading `IDX_datadir` ...\n'))
-              if (GEX_had_secondary_assay && samples[[s]]$SECONDARY_ASSAY_NAME == samples[[s]]$IDX_ASSAY_NAME) {
+              if (GEX_had_secondary_assay && (samples[[s]]$IDX_ASSAY_NAME %in% Assays(sobjs[[s]]))) {
                 cat(paste0("ERROR: Cannot process ", s, " because the GEX_datadir had a secondary assay ",
                            "named ", samples[[s]]$SECONDARY_ASSAY_NAME, " and an IDX_datadir with the same ",
                            "requested name was provided. Rerun with a different IDX_ASSAY_NAME to continue.\n"))
@@ -483,13 +503,24 @@ for (s in names(samples)){
               IDX_assayobj <- CreateAssayObject(counts = data)
               sobjs[[s]][[samples[[s]]$IDX_ASSAY_NAME]] <- subset(IDX_assayobj, cells=colnames(sobjs[[s]]))
               rm(data, IDX_assayobj)
+              if (file.exists(file.path(samples[[s]]$IDX_datadir, 'feature_reference.csv'))) {
+                cat(paste0('LOG: Found `feature_reference.csv` in `IDX_datadir`. Adding feature IDs into the metadata.\n'))
+                temp_table <- read.table(file.path(samples[[s]]$IDX_datadir, 'feature_reference.csv'), sep=',', header=T, row.names=NULL, stringsAsFactors=F)
+                if (! all(rownames(sobjs[[s]][[samples[[s]]$IDX_ASSAY_NAME]]) == make.unique(gsub('_', '-', temp_table$name)))){
+                  cat('ERROR: `name`s in `feature_reference.csv` do not match those in the object.\n')
+                  next
+                }
+                sobjs[[s]][[samples[[s]]$IDX_ASSAY_NAME]]@meta.features$ID = temp_table$id
+                sobjs[[s]][[samples[[s]]$IDX_ASSAY_NAME]]@meta.features$ID.concise = unname(sapply(temp_table$id, function(x){strsplit(x, '--')[[1]][1]}))
+                rm(temp_table)
+              }
             } else {
               cat('LOG: No `IDX_datadir` specified for this sample.\n')
             }
 
             if (!is.null(samples[[s]][['ADT_datadir']])){
               cat(paste0('LOG: Reading `ADT_datadir` ...\n'))
-              if (GEX_had_secondary_assay && samples[[s]]$SECONDARY_ASSAY_NAME == samples[[s]]$ADT_ASSAY_NAME) {
+              if (GEX_had_secondary_assay && (samples[[s]]$ADT_ASSAY_NAME %in% Assays(sobjs[[s]]))) {
                 cat(paste0("ERROR: Cannot process ", s, " because the GEX_datadir had a secondary assay ",
                            "named ", samples[[s]]$SECONDARY_ASSAY_NAME, " and an ADT_datadir with the same ",
                            "requested name was provided. Rerun with a different ADT_ASSAY_NAME to continue.\n"))
@@ -511,8 +542,63 @@ for (s in names(samples)){
               ADT_assayobj <- CreateAssayObject(counts = data)
               sobjs[[s]][[samples[[s]]$ADT_ASSAY_NAME]] <- subset(ADT_assayobj, cells=colnames(sobjs[[s]]))
               rm(data, ADT_assayobj)
+              if (file.exists(file.path(samples[[s]]$ADT_datadir, 'feature_reference.csv'))) {
+                cat(paste0('LOG: Found `feature_reference.csv` in `ADT_datadir`. Adding feature IDs into the metadata.\n'))
+                temp_table <- read.table(file.path(samples[[s]]$ADT_datadir, 'feature_reference.csv'), sep=',', header=T, row.names=NULL, stringsAsFactors=F)
+                if (! all(rownames(sobjs[[s]][[samples[[s]]$ADT_ASSAY_NAME]]) == make.unique(gsub('_', '-', temp_table$name)))){
+                  cat('ERROR: `name`s in `feature_reference.csv` do not match those in the object.\n')
+                  next
+                }
+                sobjs[[s]][[samples[[s]]$ADT_ASSAY_NAME]]@meta.features$ID = temp_table$id
+                sobjs[[s]][[samples[[s]]$ADT_ASSAY_NAME]]@meta.features$ID.concise = unname(sapply(temp_table$id, function(x){strsplit(x, '--')[[1]][1]}))
+                rm(temp_table)
+              }
             } else {
               cat('LOG: No `ADT_datadir` specified for this sample.\n')
+            }
+
+            # Now split the Antibidy Capture assay if necessary
+            if (!is.na(samples[[s]]$UNMERGE_AB_PANEL_CSV)){
+              unmerge_csv = read.table(samples[[s]]$UNMERGE_AB_PANEL_CSV, sep=',', header=T, row.names=NULL, stringsAsFactors=F)
+              if (!all(c('id', 'ASSAY_FROM', 'ASSAY_TO') %in% colnames(unmerge_csv))){
+                cat("ERROR: UNMERGE_AB_PANEL_CSV must contain columns named `id`, `ASSAY_FROM` and `ASSAY_TO`\n")
+                next
+              }
+              from_assay_name = unique(unmerge_csv$ASSAY_FROM)
+              if (length(from_assay_name) != 1){
+                cat("ERROR: ASSAY_FROM must only contain one assay.\n")
+                next
+              }
+              if (! from_assay_name %in% Assays(sobjs[[s]])){
+                cat("ERROR: ASSAY_FROM must be in the seurat object.\n")
+                next
+              }
+              if (length(setdiff(intersect(unique(unmerge_csv$ASSAY_TO), Assays(sobjs[[s]])), from_assay_name))!=0){
+                cat("ERROR: ASSAY_TO cannot include an existing assay except from `ASSAY_FROM`.\n")
+                next 
+              }
+              if (!all(sobjs[[s]][[from_assay_name]]@meta.features$ID == unmerge_csv$id)){
+                cat("ERROR: The `id` column does not match the one seen in the assay.\n")
+                next 
+              }
+              to_assay_names = unique(unmerge_csv$ASSAY_TO)
+              cat(paste0('LOGS: Splitting ', from_assay_name, ' into (', paste(to_assay_name, sep=', '), ') using ',
+                         'the table ', samples[[s]]$UNMERGE_AB_PANEL_CSV))
+              subset_sobjs <- list()
+              for (to_assay_name in to_assay_names){
+                ids_to_keep = unmerge_csv$id[unmerge_csv$ASSAY_TO == to_assay_name]
+                subset_sobjs[[to_assay_name]] <- subset(sobjs[[s]][[from_assay_name]], 
+                                                        features=rownames(sobjs[[s]][[from_assay_name]])[sobjs[[s]][[from_assay_name]]@meta.features$ID %in% ids_to_keep])
+                subset_sobjs[[to_assay_name]]@key = paste0(tolower(to_assay_name), '_')
+              }
+              sobjs[[s]][[from_assay_name]] <- NULL
+              for (to_assay_name in to_assay_names){
+                sobjs[[s]][[to_assay_name]] <- subset_sobjs[[to_assay_name]]
+                counts <- SeuratObject:::CalcN(subset_sobjs[[to_assay_name]])
+                sobjs[[s]]@meta.data[[paste0('nCount_', to_assay_name)]] <- counts$nCount
+                sobjs[[s]]@meta.data[[paste0('nFeature_', to_assay_name)]] <- counts$nFeature
+              }
+              rm(unmerge_csv, subset_sobjs)
             }
 
 
@@ -580,7 +666,12 @@ for (s in names(samples)){
             }
 
             writeLines(colnames(sobjs[[s]]), con=paste0(samples[[s]]$OUT_FOLDER, '/', "barcodes_of_interest.list"))
-
+            for (assay in Assays(sobjs[[s]])){
+              if (assay == 'RNA'){
+                next
+              }
+              writeLines(rownames(sobjs[[s]][[assay]]), con=paste0(samples[[s]]$OUT_FOLDER, '/', assay, '_keep_features.list'))
+            }
             write_yaml(cutoffs, file=paste0(samples[[s]]$OUT_FOLDER, '/', "cutoffs.yml"))
 
             assign(s, sobjs[[s]])
@@ -637,27 +728,27 @@ for (s in names(samples)){
                 filter_cat_text <- " not in "
               }
 
-              print(paste0("Dropping ", additional_text,
-                           total_cells[1] - sum(keep_rownames),
-                           " cells (",
-                           round((total_cells[1] - sum(keep_rownames))/length(keep_rownames) * 100, 2),
-                           "%) for having `", filter_feature,
-                           filter_cat_text,
-                           cutoffs[[filter_key]], "`."))
+              cat(paste0("Dropping ", additional_text,
+                         total_cells[1] - sum(keep_rownames),
+                         " cells (",
+                         round((total_cells[1] - sum(keep_rownames))/length(keep_rownames) * 100, 2),
+                         "%) for having `", filter_feature,
+                         filter_cat_text,
+                         cutoffs[[filter_key]], "`.\n"))
               additional_text = "an additional "
               total_cells = c(sum(keep_rownames),
                               round(sum(keep_rownames)/length(keep_rownames) * 100, 2))
             }
           }
 
-          print(paste0("Dropping a total of ", sum(keep_rownames==FALSE),
-                       " cells (",
-                       round(sum(keep_rownames==FALSE)/length(keep_rownames) *100, 2),
-                       "%)."))
-          print(paste0("Retaining a total of ", sum(keep_rownames),
-                       " cells (",
-                       round(sum(keep_rownames)/length(keep_rownames) *100, 2),
-                       "%)."))
+          cat(paste0("Dropping a total of ", sum(keep_rownames==FALSE),
+                     " cells (",
+                     round(sum(keep_rownames==FALSE)/length(keep_rownames) *100, 2),
+                     "%).\n"))
+          cat(paste0("Retaining a total of ", sum(keep_rownames),
+                     " cells (",
+                     round(sum(keep_rownames)/length(keep_rownames) *100, 2),
+                     "%).\n"))
 
           sobjs[[s]] <- subset(sobjs[[s]],
                                cells = rownames(sobjs[[s]]@meta.data[keep_rownames, ]))
@@ -666,13 +757,23 @@ for (s in names(samples)){
             if (assay == "RNA"){
               next
             }
-            keep_features <- c(keep_features, rownames(sobjs[[s]]@assays[[assay]]@counts))
+            if (file.exists(paste0(samples[[s]]$OUT_FOLDER, '/', assay, "_keep_features.list"))){  
+                cat(paste0('LOG: Found ', assay, '_keep_features.list. Reading features to retain from there\n'))
+                keep_features_temp <- readLines(paste0(samples[[s]]$OUT_FOLDER, '/', assay, "_keep_features.list"))
+                if (! all(keep_features_temp %in% rownames(sobjs[[s]]@assays[[assay]]))){
+                  cat("ERROR: Provided features were not all present in the object\n")
+                  next
+                }
+                keep_features <- c(keep_features, keep_features_temp)
+              } else{
+                keep_features <- c(keep_features, rownames(sobjs[[s]]@assays[[assay]]))
+              }
           }
           keep_genes <- rownames(sobjs[[s]]@assays$RNA@counts)[Matrix::rowSums(sobjs[[s]]@assays$RNA@counts>0)>3]
-          print(paste0("Dropping ",
-                       (length(rownames(sobjs[[s]]@assays$RNA@counts)) -
-                        length(keep_genes)),
-                       " genes for being in fewer than 3 cells"))
+          cat(paste0("Dropping ",
+                     (length(rownames(sobjs[[s]]@assays$RNA@counts)) -
+                      length(keep_genes)),
+                     " genes for being in fewer than 3 cells\n"))
           sobjs[[s]] <- subset(sobjs[[s]], features = c(keep_genes, keep_features))
 
           plot_all_profiles(sobjs[[s]],
@@ -734,11 +835,22 @@ for (s in names(samples)){
                               }, simplify = FALSE, USE.NAMES = TRUE)
           sample_names <- names(IDX_map$sample_name)
           sample_names <- sample_names[!sample_names %in% c("NEGATIVE", "MULTIPLET", "OTHER")]
-          suppmgg <- assert_that(all(sample_names %in% rownames(sobjs[[s]]@assays[[samples[[s]]$IDX_ASSAY_NAME]])),
-                                 msg="Not all hashtags in IDX_map.tsv are in the seurat object")
-          keep_features <- c(rownames(sobjs[[s]]@assays$RNA),
-                             sample_names)
-          sobjs[[s]] <- subset(sobjs[[s]], features = keep_features)
+
+          if (! all(sample_names %in% rownames(sobjs[[s]][[samples[[s]]$IDX_ASSAY_NAME]]))){
+            cat("ERROR: Not all hashtags in IDX_map.tsv are in the seurat object\n")
+            next
+          } else if (length(setdiff(rownames(sobjs[[s]][[samples[[s]]$IDX_ASSAY_NAME]]), sample_names)) > 0 ){
+              cat("LOG: Seurat Object contains more hashtags than in IDX_map.tsv. Dropping extras\n")
+              keep_features <- c()
+              for (assay in Assays(sobjs[[s]])) {
+                if (assay == samples[[s]]$IDX_ASSAY_NAME) {
+                  keep_features <- c(keep_features, sample_names)
+                } else {
+                  keep_features <- c(keep_features, rownames(sobjs[[s]][[assay]]))
+                }
+              }
+              sobjs[[s]] <- subset(sobjs[[s]], features = keep_features)
+          }
 
           if ("threshold" %in% names(IDX_map)){
             inflexions <- IDX_map$threshold[sample_names]

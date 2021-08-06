@@ -66,18 +66,18 @@ plot_all_profiles <- function(sobj, out_prefix, plot_extras=FALSE, scatter_color
         )
     for (assay_name in other_assay_names){
       if (assay_name %in% names(sobj@assays)){
-        plots[[7]] <- generate_profile_plot(sobj,
-                                            feature1 = paste0("nCount_", assay_name),
-                                            feature2 = "nCount_RNA",
-                                            feature1_binwidth=100,
-                                            feature2_binwidth=100,
-                                            scatter_color=scatter_color)
-        plots[[8]] <- generate_profile_plot(sobj,
-                                            feature1 = paste0("nCount_", assay_name),
-                                            feature2 = "percent.mt",
-                                            feature1_binwidth=100,
-                                            feature2_binwidth=0.1,
-                                            scatter_color=scatter_color)
+        plots[[length(plots)+1]] <- generate_profile_plot(sobj,
+                                                          feature1 = paste0("nCount_", assay_name),
+                                                          feature2 = "nCount_RNA",
+                                                          feature1_binwidth=100,
+                                                          feature2_binwidth=100,
+                                                          scatter_color=scatter_color)
+        plots[[length(plots)+1]] <- generate_profile_plot(sobj,
+                                                          feature1 = paste0("nCount_", assay_name),
+                                                          feature2 = "percent.mt",
+                                                          feature1_binwidth=100,
+                                                          feature2_binwidth=0.1,
+                                                          scatter_color=scatter_color)
         df[paste0("nCount_", assay_name)] <- quantile(sobj@meta.data[[paste0("nCount_", assay_name)]], seq(0, 1.01, 0.1))
       }
     }
