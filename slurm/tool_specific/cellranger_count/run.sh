@@ -35,9 +35,9 @@ singularity exec \
                                 --localcores=${SLURM_CPUS_PER_TASK} \
                                 --localmem=${USABLEMEMORY}
 
-if [ -d ${OUTDIR} ]
+if [[ -d ${OUTDIR} ]]
 then
-    mv ${TMPDIR}/cellranger_count_${SAMPLE}/${SAMPLE}/outs ${OUTDIR}/${SAMPLE}_countsqq
+    mv ${TMPDIR}/cellranger_count_${SAMPLE}/${SAMPLE}/outs ${OUTDIR}/${SAMPLE}_counts
 else
     mkdir -p $(dirname ${OUTDIR})
     mv ${TMPDIR}/cellranger_count_${SAMPLE}/${SAMPLE}/outs ${OUTDIR}

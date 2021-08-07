@@ -21,6 +21,7 @@ EOF
 read -r -d '' GLOBAL_OPTIONAL_HELPTEXT << EOF || true
 ## GLOBAL OPTIONAL PARAMETERS ##
 LOGDIR             : A path to a logdir (default: /krummellab/data1/${USER}/logs)
+PARTITION          : Slurm partition to use (default: krummellab)
 TIME               : Max job runtime (default: 1-00:00:00)
 NTASKS             : Number of tasks in this job (default: 1) [YMMV with modifying this parameter!]
 CPUSPERTASK        : Cpus required per task (default: 12)
@@ -35,6 +36,11 @@ then
     LOGDIR=/krummellab/data1/${USER}/logs
 else
     LOGDIR=${LOGDIR#/}
+fi
+
+if [[ ${PARTITION-"EMPTY"} == "EMPTY" ]]
+then
+    PARTITION="krummellab"
 fi
 
 if [[ ${TIME-"EMPTY"} == "EMPTY" ]]

@@ -44,6 +44,7 @@ sbatch --export="ALL,${GLOBAL_EXPORT_VARS}${LOCAL_EXPORT_VARS}" \
        --error=${LOGDIR}/${JOBNAME}_$(date "+%Y_%m_%d_%H_%M_%S").err \
        --output=${LOGDIR}/${JOBNAME}_$(date "+%Y_%m_%d_%H_%M_%S").out \
        --job-name=${JOBNAME} \
+       --partition=${PARTITION} \
        --time=${TIME} \
        --ntasks=${NTASKS} \
        --cpus-per-task ${CPUSPERTASK} \
