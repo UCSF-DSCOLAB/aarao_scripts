@@ -455,7 +455,11 @@ for (s in names(samples)){
               if (file.exists(file.path(samples[[s]]$GEX_datadir, 'feature_reference.csv'))){
                 cat('LOG: Found `feature_reference.csv` in `GEX_datadir`. Adding feature IDs into the metadata.\n')
                 temp_table <- read.table(file.path(samples[[s]]$GEX_datadir, 'feature_reference.csv'), sep=',', header=T, row.names=NULL, stringsAsFactors=F)
-                if (! all(rownames(sobjs[[s]][[samples[[s]]$SECONDARY_ASSAY_NAME]]) == make.unique(gsub('_', '-', temp_table$name)))){
+                # Kinda hand-wavey, but if this is a formality, really.
+                # If the shapes are the same and the reference is a prefix for the object (where they've been made unique)
+                # then it's ok
+                if ( (dim(sobjs[[s]][[samples[[s]]$SECONDARY_ASSAY_NAME]])[1] != dim(temp_table)[1]) ||
+                      ! all(startsWith(rownames(sobjs[[s]][[samples[[s]]$SECONDARY_ASSAY_NAME]]), gsub('_', '-', temp_table$name)))) {
                   cat('ERROR: `name`s in `feature_reference.csv` do not match those in the object.\n')
                   next
                 }
@@ -506,7 +510,8 @@ for (s in names(samples)){
               if (file.exists(file.path(samples[[s]]$IDX_datadir, 'feature_reference.csv'))) {
                 cat(paste0('LOG: Found `feature_reference.csv` in `IDX_datadir`. Adding feature IDs into the metadata.\n'))
                 temp_table <- read.table(file.path(samples[[s]]$IDX_datadir, 'feature_reference.csv'), sep=',', header=T, row.names=NULL, stringsAsFactors=F)
-                if (! all(rownames(sobjs[[s]][[samples[[s]]$IDX_ASSAY_NAME]]) == make.unique(gsub('_', '-', temp_table$name)))){
+                if ( (dim(sobjs[[s]][[samples[[s]]$IDX_ASSAY_NAME]])[1] != dim(temp_table)[1]) ||
+                    ! all(startsWith(rownames(sobjs[[s]][[samples[[s]]$IDX_ASSAY_NAME]]), gsub('_', '-', temp_table$name)))) {
                   cat('ERROR: `name`s in `feature_reference.csv` do not match those in the object.\n')
                   next
                 }
@@ -545,7 +550,8 @@ for (s in names(samples)){
               if (file.exists(file.path(samples[[s]]$ADT_datadir, 'feature_reference.csv'))) {
                 cat(paste0('LOG: Found `feature_reference.csv` in `ADT_datadir`. Adding feature IDs into the metadata.\n'))
                 temp_table <- read.table(file.path(samples[[s]]$ADT_datadir, 'feature_reference.csv'), sep=',', header=T, row.names=NULL, stringsAsFactors=F)
-                if (! all(rownames(sobjs[[s]][[samples[[s]]$ADT_ASSAY_NAME]]) == make.unique(gsub('_', '-', temp_table$name)))){
+                if ( (dim(sobjs[[s]][[samples[[s]]$ADT_ASSAY_NAME]])[1] != dim(temp_table)[1]) ||
+                    ! all(startsWith(rownames(sobjs[[s]][[samples[[s]]$ADT_ASSAY_NAME]]), gsub('_', '-', temp_table$name)))) {
                   cat('ERROR: `name`s in `feature_reference.csv` do not match those in the object.\n')
                   next
                 }
