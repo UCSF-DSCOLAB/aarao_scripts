@@ -29,60 +29,20 @@ MEMPERCPU          : Memory required per cpu (default: 10gb)
 MEMORYFRAC         : Fraction of requested memory usable by the task (default: 0.9) 
 USABLEMEMORY       : Memory usable by the task (default: CPUSPERTASK x MEMPERCPU x MEMORYFRAC)
 COLLAPSEDIRSCRIPT  : /krummellab/data1/${USER}/aarao_scripts/python/collapse_folderlist.py
+ECHO_CMD           : Positional argument to echo the sbatch command (Useful for debugging exported vars)
+DRY_RUN            : Positional argument (Useful for debugging exported vars, implies ECHO_CMD)
 EOF
 
-if [[ ${LOGDIR-"EMPTY"} == "EMPTY" ]]
-then
-    LOGDIR=/krummellab/data1/${USER}/logs
-else
-    LOGDIR=${LOGDIR#/}
-fi
+DEFAULTLOGDIR=/krummellab/data1/${USER}/logs
+DEFAULTPARTITION=krummellab
+DEFAULTTIME=1-00:00:00
+DEFAULTNTASKS=1
+DEFAULTCPUSPERTASK=12
+DEFAULTMEMPERCPU=10gb
+DEFAULTMEMORYFRAC=0.9
+DEFAULTCOLLAPSEDIRSCRIPT=/krummellab/data1/${USER}/aarao_scripts/python/collapse_folderlist.py
 
-if [[ ${PARTITION-"EMPTY"} == "EMPTY" ]]
-then
-    PARTITION="krummellab"
-fi
-
-if [[ ${TIME-"EMPTY"} == "EMPTY" ]]
-then
-    TIME="1-00:00:00"
-fi
-
-if [[ ${NTASKS-"EMPTY"} == "EMPTY" ]]
-then
-    NTASKS="1"
-fi
-
-if [[ ${CPUSPERTASK-"EMPTY"} == "EMPTY" ]]
-then
-    CPUSPERTASK="12"
-fi
-
-if [[ ${MEMPERCPU-"EMPTY"} == "EMPTY" ]]
-then
-    MEMPERCPU="10gb"
-fi
-
-if [[ ${MEMORYFRAC-"EMPTY"} == "EMPTY" ]]
-then
-    MEMORYFRAC="0.9"
-fi
-
-if [[ ${USABLEMEMORY-"EMPTY"} == "EMPTY" ]]
-then
-    USABLEMEMORY=$(echo "${MEMPERCPU} * ${CPUSPERTASK} * ${MEMORYFRAC} / 1"  | sed s/gb//g | bc)
-fi
-
-if [[ ${COLLAPSEDIRSCRIPT-"EMPTY"} == "EMPTY" ]]
-then
-    COLLAPSEDIRSCRIPT="/krummellab/data1/${USER}/aarao_scripts/python/collapse_folderlist.py"
-else
-    if [ ! -f ${COLLAPSEDIRSCRIPT} ]
-    then
-       echo -e "\nERROR: COLLAPSEDIRSCRIPT does not exist: ${COLLAPSEDIRSCRIPT}\n"
-    fi
-fi
-
+GLOBAL_SKIP_DEFAULT_ARGS=("USABLEMEMORY" "ECHO_CMD" "DRY_RUN")
 
 function print_help() {
   echo "################################################################################"
