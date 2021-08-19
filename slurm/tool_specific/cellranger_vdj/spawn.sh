@@ -99,6 +99,6 @@ CONTAINER=$(readlink -e ${CONTAINER}),\
 REFERENCE=$(readlink -e ${REFERENCE}),\
 CHAIN=${CHAIN}"
 
-JOBNAME=cellranger_count_${SAMPLE}
+JOBNAME=cellranger_vdj_${SAMPLE}
 
 source $(dirname ${0})/../final_spawn.sh
