@@ -4,7 +4,6 @@ set -o nounset
 
 source $(dirname ${0})/../../../bash/argparse.sh
 
-
 read -r -d '' USAGE_HELPTEXT << EOF || true
 USAGE:  spawn.sh REQD_ARG1=RVAL1 \\
                  REQD_ARG2=RVAL2 \\
@@ -43,6 +42,12 @@ DEFAULTMEMORYFRAC=0.9
 DEFAULTCOLLAPSEDIRSCRIPT=/krummellab/data1/${USER}/aarao_scripts/python/collapse_folderlist.py
 
 GLOBAL_SKIP_DEFAULT_ARGS=("USABLEMEMORY" "ECHO_CMD" "DRY_RUN")
+
+# POSITIONAL_ARGS can be empty and set -o nounset will raies an error
+if [[ ${POSITIONAL_ARGS[@]-"EMPTY"} == "EMPTY" ]]
+then
+    POSITIONAL_ARGS=""
+fi
 
 function print_help() {
   echo "################################################################################"

@@ -8,7 +8,7 @@ do
     if [[ "${GLOBAL_SKIP_DEFAULT_ARGS[@]}" =~ "${gov}" ]]
     then
         continue
-    elif [[ ! "${RECEIVED_NAMED_ARGS[@]}" =~ "${gov}" ]]
+    elif [[ ! "${RECEIVED_NAMED_ARGS[@]}" =~ "${gov}" ]] && [[ ${!gov-"EMPTY"} == "EMPTY" ]]
     then
         temp=DEFAULT${gov}
         declare "${gov}=${!temp}"
