@@ -34,11 +34,11 @@ fi
 
 if readlink -f ${OUTDIR}
 then
-    if [[ -d ${OUTDIR} ]] && [[! -w ${OUTDIR} ]]
+    if [[ -d ${OUTDIR} ]] && ! [[ -w ${OUTDIR} ]]
     then
         echo -e "\nERROR: OUTDIR exists but is not writable."
         exit 1
-    elif [[ -d $(dirname ${OUTDIR}) ]] && [[! -w $(dirname ${OUTDIR}) ]]
+    elif [[ -d $(dirname ${OUTDIR}) ]] && ! [[ -w $(dirname ${OUTDIR}) ]]
     then
         echo -e "\nERROR: Parent dir to OUTDIR exists but is not writable."
         exit 1

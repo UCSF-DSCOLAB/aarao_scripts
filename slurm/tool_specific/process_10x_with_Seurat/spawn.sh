@@ -14,7 +14,7 @@ read -r -d '' LOCAL_OPTIONAL_HELPTEXT  << EOF || true
 ## OPTIONAL PARAMETERS ##
 CONTAINER          : The singularity container to use (/krummellab/data1/singularity_images/RSingleCell/v2/RSingleCell.sif)
 WORKING_FOLDER     : A folder in which we will place the run warnings(\${TMPDIR})
-RSCRIPTS_DIR       : Where to find aux R scripts form the aarao_scripts repo (\${SCRIPTS}/R)
+RSCRIPTS_DIR       : Where to find aux R scripts form the aarao_scripts repo (/krummellab/data1/${USER}/aarao_scripts/R)
 GENESET_DIR        : Where to find genesets (/krummellab/data1/ipi/data/refs/10x/genesets)
 EOF
 
