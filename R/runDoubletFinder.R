@@ -5,7 +5,7 @@ suppressPackageStartupMessages({
   if (!'package:Seurat' %in% search()) library(Seurat)
 })
 
-runDoubletFinder <- function(sobj, doublet_rate, out_prefix, num_cores=1, annot="SCT_snn_res.0.8", PCs=1:30, sct=TRUE, pN=0.25) {
+runDoubletFinder <- function(sobj, doublet_rate, out_prefix, num_cores=1, annot="SCT_snn_res.0.8", PCs=1:50, sct=TRUE, pN=0.25) {
     sweep.list <- paramSweep_v3(sobj, PCs=PCs, sct=sct, num.cores=num_cores)
     sweep.stats <- summarizeSweep(sweep.list, GT = FALSE)
     png(paste0(out_prefix, '_doubletfinder_bcmvn.png'), height=500, width=500, units='px')
@@ -18,7 +18,7 @@ runDoubletFinder <- function(sobj, doublet_rate, out_prefix, num_cores=1, annot=
                 col.names=T,
                 quote=F)
     homotypic.prop <- modelHomotypic(as.vector(sobj@meta.data[[annot]]))
-    nExp_poi <- round(doublet_rate*(dim(sobj)[1]))
+    nExp_poi <- round(doublet_rate*(dim(sobj)[2]))
     nExp_poi.adj <- round(nExp_poi*(1-homotypic.prop))
     # Kinda invariant.... use default
     pN <- pN
