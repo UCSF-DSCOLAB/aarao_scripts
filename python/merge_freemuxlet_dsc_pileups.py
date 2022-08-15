@@ -3,6 +3,7 @@ import gzip
 import os
 import pandas as pd
 import shutil
+import difflib
 
 def main():
     parser = argparse.ArgumentParser()
@@ -41,24 +42,38 @@ def main():
     print('Processing *.var.gz')
     _x = None
     num_lines = {}
-    fails = 0
+    # Collect nrows
     for s in fmx_ids.itertuples():
         with gzip.open(os.path.join(s.freemuxlet_dir, f'{s.sample}.var.gz')) as iff:
             x = len(iff.readlines())
-        if _x is None:
-            _x = x
-        fails += _x!=x
         num_lines[s.sample] = x
-
-    if fails > 0:
-        print(f'Found {fails} failures. Full list below.')
+    # If not all the same, check if smaller ones = largest just minus some lines at the end.  If so, that's okay!  Seems to be what dscpileup does when those SNPs are never captured.
+    if len(set(list(num_lines.values()))) != 1:
+        print(f'Found var.gz files of different lengths.')
         for x, y in num_lines.items():
             print(f'{x}: {y}')
-        raise RuntimeError('Freemuxlet runs used different VCFs for processing')
-    else:
-        print('Writing merged.var.gz to disk')
-        shutil.copy(os.path.join(s.freemuxlet_dir, f'{s.sample}.var.gz'),
-                    os.path.join(outdir, 'merged.var.gz'))
+        longest = max(num_lines, key=num_lines.get)
+        with gzip.open(os.path.join(
+            fmx_ids.loc[fmx_ids['sample']==longest, 'freemuxlet_dir'][0],
+            f'{longest}.var.gz')
+        ) as longest_file:
+            longest_file_text = longest_file.readlines()
+        for s in fmx_ids.itertuples():
+            with gzip.open(os.path.join(s.freemuxlet_dir, f'{s.sample}.var.gz')) as this_file:
+                this_file_text = this_file.readlines()
+            diff = difflib.unified_diff(
+                this_file_text,
+                longest_file_text,
+                fromfile=f'{s.sample}.var.gz',
+                tofile=f'{longest}.var.gz'
+            )
+            print(diff)
+            if len(diff) != 0 and len(diff) != num_lines[longest]-num_lines[s.sample]:
+                print(diff)
+                raise RuntimeError('Freemuxlet runs used different VCFs for processing')
+    print('Writing merged.var.gz to disk')
+    shutil.copy(os.path.join(s.freemuxlet_dir, f'{s.sample}.var.gz'),
+                os.path.join(outdir, 'merged.var.gz'))
 
     merged_cels = None
     merged_plps = None
