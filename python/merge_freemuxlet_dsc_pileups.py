@@ -47,32 +47,14 @@ def main():
         with gzip.open(os.path.join(s.freemuxlet_dir, f'{s.sample}.var.gz')) as iff:
             x = len(iff.readlines())
         num_lines[s.sample] = x
-    # If not all the same, check if smaller ones = largest just minus some lines at the end.  If so, that's okay!  Seems to be what dscpileup does when those SNPs are never captured.
+    longest = max(num_lines, key=num_lines.get)
+    longest_idx = [i for i, x in enumerate(fmx_ids['sample']==longest) if x][0]
+    print(longest_idx)
+    # TODO: If not all the same, check if smaller ones = largest just minus some lines at the end.  If so, that's okay!  Seems to be what dscpileup does when those SNPs are never captured.
     if len(set(list(num_lines.values()))) != 1:
-        print(f'Found var.gz files of different lengths.')
-        for x, y in num_lines.items():
-            print(f'{x}: {y}')
-        longest = max(num_lines, key=num_lines.get)
-        with gzip.open(os.path.join(
-            fmx_ids.loc[fmx_ids['sample']==longest, 'freemuxlet_dir'][0],
-            f'{longest}.var.gz')
-        ) as longest_file:
-            longest_file_text = longest_file.readlines()
-        for s in fmx_ids.itertuples():
-            with gzip.open(os.path.join(s.freemuxlet_dir, f'{s.sample}.var.gz')) as this_file:
-                this_file_text = this_file.readlines()
-            diff = difflib.unified_diff(
-                this_file_text,
-                longest_file_text,
-                fromfile=f'{s.sample}.var.gz',
-                tofile=f'{longest}.var.gz'
-            )
-            print(diff)
-            if len(diff) != 0 and len(diff) != num_lines[longest]-num_lines[s.sample]:
-                print(diff)
-                raise RuntimeError('Freemuxlet runs used different VCFs for processing')
+        print(f'!!Found var.gz files of different lengths, but assuming this is the fault of dscpileup and using the longest one, {longest}')
     print('Writing merged.var.gz to disk')
-    shutil.copy(os.path.join(s.freemuxlet_dir, f'{s.sample}.var.gz'),
+    shutil.copy(os.path.join(fmx_ids.loc[longest_idx, 'freemuxlet_dir'], f'{longest}.var.gz'),
                 os.path.join(outdir, 'merged.var.gz'))
 
     merged_cels = None
