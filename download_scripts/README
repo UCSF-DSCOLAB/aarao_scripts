@@ -1,0 +1,19 @@
+Step 1: Take the ihg links for each library you want to download and add it to ${PROJECT}/get_${PROJECT}_n.list where n is increasing from 1.
+
+Step 2: Run the command
+	# Assumes username is krummelm
+	bash spawn_download_10x_from_ihg.sh ${PROJECT}/get_${PROJECT}_n.list
+        # Specifically pass in a username
+	bash spawn_download_10x_from_ihg.sh ${PROJECT}/get_${PROJECT}_n.list krummelm
+
+
+The download will be spawned as a cluster job and results will be stored in ihg-client.ucsf.edu/${USERNAME}.
+
+Specifics:
+The files at /krummellab/data1/immunox/staging/wgetrcs/ hold a username and password for the downloads so nefarious agents cannot swipe your password from the top/ps/htop outputs.
+
+To add a new username to use with this script, create a file called `/krummellab/data1/immunox/staging/wgetrcs/new_username` then populate the file with
+```
+user=new_username
+password=new_password
+``` 
