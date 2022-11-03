@@ -19,6 +19,7 @@ bindmount_string=$(python3 ${COLLAPSEDIRSCRIPT} --prefixB $(dirname ${BAMFILE}) 
 # Create filtered BAM with only the reads dsc-pileup needs.
 singularity exec \
             ${bindmount_string} \
+            -B ${TMPDIR}:/tmp/ \
             --pwd ${PWD} \
             ${CONTAINER} bash ${POPSCLE_HELPER_TOOLS_DIR}/filter_bam_file_for_popscle_dsc_pileup.sh \
                 ${BAMFILE} \
@@ -36,6 +37,7 @@ fi
 # Use filtered BAM file for dsc-pileup
 singularity exec \
             ${bindmount_string} \
+            -B ${TMPDIR}:/tmp/ \
             --pwd ${PWD} \
             ${CONTAINER} popscle dsc-pileup \
                     --sam ${prefix}_filtered.${extension} \
@@ -47,6 +49,7 @@ singularity exec \
 
 singularity exec \
             ${bindmount_string} \
+            -B ${TMPDIR}:/tmp/ \
             --pwd ${PWD} \
             ${CONTAINER} popscle freemuxlet \
                     --plp ${SAMPLE} \

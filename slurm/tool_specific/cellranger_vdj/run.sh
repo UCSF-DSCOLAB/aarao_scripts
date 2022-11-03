@@ -16,6 +16,7 @@ bindmount_string=$(python3 ${COLLAPSEDIRSCRIPT} --prefixB $(dirname ${FASTQDIR})
 singularity exec \
             ${bindmount_string} \
             --pwd ${PWD} \
+            -B ${TMPDIR}:/tmp/ \
             ${CONTAINER} cellranger vdj \
                                 --id=${SAMPLE} \
                                 --fastqs=${FASTQDIR} \

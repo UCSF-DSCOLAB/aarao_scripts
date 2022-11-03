@@ -23,6 +23,7 @@ bindmount_string=$(python3 ${COLLAPSEDIRSCRIPT} --prefixB $(dirname ${MULTI_CSV}
 
 singularity exec \
             ${bindmount_string} \
+            -B ${TMPDIR}:/tmp/ \
             --pwd ${PWD} \
             ${CONTAINER} cellranger multi \
                                 --id=${SAMPLE} \

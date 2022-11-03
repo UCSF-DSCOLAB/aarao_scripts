@@ -17,6 +17,7 @@ SAMPLE             : The name of the sample (parsed from LIBRARIES_CSV by defaul
 TRANSCRIPTOME      : Path to 10X Indexes (default: /krummellab/data1/ipi/data/refs/10x/refdata-gex-GRCh38-2020-A)
 CHEMISTRY          : 10X Chemistry. (default: auto)
 FEATUREREF         : Feature reference file for CITE-Seq or hashtags (default: /krummellab/data1/ipi/data/refs/10x/citeseq_resources/TotalSeqC_Human_Universal_Cocktail_v1.csv)
+INCLUDE_INTRONS    : positional arg to add --include-introns for snRNA-seq
 EOF
 
 read -r -d '' GLOBAL_OVERRIDE_HELPTEXT  << EOF || true
@@ -115,6 +116,15 @@ else
     fi
 fi
 
+
+if [[ "${POSITIONAL_ARGS[@]}" =~ "INCLUDE_INTRONS" ]]
+then
+    INCLUDE_INTRONS=TRUE
+else
+    INCLUDE_INTRONS=FALSE
+fi
+
+
 LOCAL_EXPORT_VARS="\
 LIBRARIES_CSV=$(readlink -e ${LIBRARIES_CSV}),\
 OUTDIR=$(readlink -f ${OUTDIR}),\
@@ -122,7 +132,8 @@ SAMPLE=${SAMPLE},\
 CONTAINER=$(readlink -e ${CONTAINER}),\
 FEATUREREF=${FEATUREREF},\
 TRANSCRIPTOME=$(readlink -e ${TRANSCRIPTOME}),\
-CHEMISTRY=${CHEMISTRY}"
+CHEMISTRY=${CHEMISTRY},\
+INCLUDE_INTRONS=${INCLUDE_INTRONS}"
 
 JOBNAME=cellranger_count_${SAMPLE}
 

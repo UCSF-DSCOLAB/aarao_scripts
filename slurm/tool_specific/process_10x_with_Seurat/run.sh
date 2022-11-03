@@ -25,6 +25,7 @@ bindmount_string=$(python3 ${COLLAPSEDIRSCRIPT} --prefixB $(dirname ${SAMPLE_YML
 
 singularity exec \
       ${bindmount_string[@]} \
+      -B ${TMPDIR}:/tmp/ \
       --pwd ${WORKING_FOLDER} \
       ${CONTAINER} Rscript \
             ${RSCRIPTS_DIR}/process_10x_with_Seurat.R \
