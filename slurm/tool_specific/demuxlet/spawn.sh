@@ -20,6 +20,8 @@ POPSCLE_HELPER_TOOLS_DIR : A path to the popscle_helper_tools folder (/krummella
 ONEKGENOMESVCF           : Folder containing per-chromosome 1k genomes vcfs (default: /krummellab/data1/ipi/data/databases/freemuxlet_vcf/ucsc.hg38.liftover.out.withchr.c1_22.nohbb.vcf.gz)
 RANDOMSEED               : 21212
 NO_TAG_UMI               : Positional arg to skip the \`--tag-UMI\` option.
+DSC_ONLY                 : Positional arg to run only DSC and not DMX, used pre-merge
+DMX_ONLY                 : Positional arg to run only DMX and not DSC before, used post merge
 EOF
 
 read -r -d '' GLOBAL_OVERRIDE_HELPTEXT  << EOF || true
@@ -87,6 +89,23 @@ if [[ "${POSITIONAL_ARGS[@]}" =~ "NO_TAG_UMI" ]]
         NO_TAG_UMI=FALSE
 	fi
 
+
+if [[ "${POSITIONAL_ARGS[@]}" =~ "DSC_ONLY" ]]
+then
+    DSC_ONLY=TRUE
+else
+    DSC_ONLY=FALSE
+fi
+
+if [[ "${POSITIONAL_ARGS[@]}" =~ "DMX_ONLY" ]]
+then
+    DMX_ONLY=TRUE
+else
+    DMX_ONLY=FALSE
+fi
+
+
+
 LOCAL_EXPORT_VARS="\
 BAMFILE=$(readlink -e ${BAMFILE}),\
 OUTDIR=$(readlink -f ${OUTDIR}),\
@@ -97,7 +116,9 @@ ONEKGENOMESVCF=$(readlink -e ${ONEKGENOMESVCF}),\
 SAMPLE=${SAMPLE},\
 VCF=${VCF},\
 RANDOMSEED=${RANDOMSEED},\
-NO_TAG_UMI=${NO_TAG_UMI}"
+NO_TAG_UMI=${NO_TAG_UMI},\
+DSC_ONLY=${DSC_ONLY},\
+DMX_ONLY=${DMX_ONLY}"
 
 JOBNAME=demuxlet_${SAMPLE}
 
