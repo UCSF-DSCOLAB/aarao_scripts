@@ -11,6 +11,7 @@ def main():
                         '`freemuxlet_dir`, and optionally `barcode_suffix`. The suffix need not '
                         'contain field separator (e.g. _2) since we will automatically apply `--`.')
     parser.add_argument('--outdir', required=True, help='An output directory')
+    parser.add_argument('--IGNORE_DIFF_LENGTHS_ERROR', action='store_true')
     params = parser.parse_args()
 
     fmx_ids = pd.read_table(params.freemuxlet_dir_tsv, sep="\t", index_col=None, header=0)
@@ -42,20 +43,34 @@ def main():
     print('Processing *.var.gz')
     _x = None
     num_lines = {}
+    fails = 0
     # Collect nrows
     for s in fmx_ids.itertuples():
         with gzip.open(os.path.join(s.freemuxlet_dir, f'{s.sample}.var.gz')) as iff:
             x = len(iff.readlines())
+        if _x is None:
+            _x = x
+        fails += _x!=x
         num_lines[s.sample] = x
-    longest = max(num_lines, key=num_lines.get)
-    longest_idx = [i for i, x in enumerate(fmx_ids['sample']==longest) if x][0]
-    print(longest_idx)
-    # TODO: If not all the same, check if smaller ones = largest just minus some lines at the end.  If so, that's okay!  Seems to be what dscpileup does when those SNPs are never captured.
-    if len(set(list(num_lines.values()))) != 1:
-        print(f'!!Found var.gz files of different lengths, but assuming this is the fault of dscpileup and using the longest one, {longest}')
-    print('Writing merged.var.gz to disk')
-    shutil.copy(os.path.join(fmx_ids.loc[longest_idx, 'freemuxlet_dir'], f'{longest}.var.gz'),
-                os.path.join(outdir, 'merged.var.gz'))
+
+    if fails > 0:
+        if params.IGNORE_DIFF_LENGTHS_ERROR:
+            longest = max(num_lines, key=num_lines.get)
+            longest_idx = [i for i, x in enumerate(fmx_ids['sample']==longest) if x][0]
+            if len(set(list(num_lines.values()))) != 1:
+                print(f'!!Found var.gz files of different lengths, but assuming this is the fault of dscpileup and using the longest one, {longest}')
+            print('Writing merged.var.gz to disk')
+            shutil.copy(os.path.join(fmx_ids.loc[longest_idx, 'freemuxlet_dir'], f'{longest}.var.gz'),
+                        os.path.join(outdir, 'merged.var.gz'))
+        else:
+            print(f'Found {fails} failures. Full list below.')
+            for x, y in num_lines.items():
+                print(f'{x}: {y}')
+            raise RuntimeError('Freemuxlet runs used may have different VCFs for processing. If you know this to be false, run again with --IGNORE_DIFF_LENGTHS_ERROR added.')
+    else:
+        print('Writing merged.var.gz to disk')
+        shutil.copy(os.path.join(s.freemuxlet_dir, f'{s.sample}.var.gz'),
+                    os.path.join(outdir, 'merged.var.gz'))
 
     merged_cels = None
     merged_plps = None
