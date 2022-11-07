@@ -56,7 +56,7 @@ def main():
             longest = max(num_lines, key=num_lines.get)
             longest_idx = [i for i, x in enumerate(fmx_ids['sample']==longest) if x][0]
             if len(set(list(num_lines.values()))) != 1:
-                print(f'!!Found var.gz files of different lengths, but assuming this is the fault of dscpileup and using the longest one, {longest}')
+                print(f'!!Found var.gz files of different lengths, but assuming this is not reference VCF-related, and using the longest one, {longest}')
             print('Writing merged.var.gz to disk')
             shutil.copy(os.path.join(fmx_ids.loc[longest_idx, 'freemuxlet_dir'], f'{longest}.var.gz'),
                         os.path.join(outdir, 'merged.var.gz'))
