@@ -43,7 +43,6 @@ def main():
     _x = None
     num_lines = {}
     fails = 0
-    # Collect nrows
     for s in fmx_ids.itertuples():
         with gzip.open(os.path.join(s.freemuxlet_dir, f'{s.sample}.var.gz')) as iff:
             x = len(iff.readlines())
