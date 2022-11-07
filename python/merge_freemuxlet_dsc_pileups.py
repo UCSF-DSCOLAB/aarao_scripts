@@ -64,7 +64,7 @@ def main():
             print(f'Found {fails} failures. Full list below.')
             for x, y in num_lines.items():
                 print(f'{x}: {y}')
-            raise RuntimeError('Freemuxlet runs used may have different VCFs for processing. If you know this to be false, run again with --IGNORE_DIFF_LENGTHS_ERROR added.')
+            raise RuntimeError('Freemuxlet runs used may have different VCFs for processing, or it may be just a freemuxlet bug. Check if the shorter .var files are simply some rows from the bottom of the longer counterparts.  If so, run again with --IGNORE_DIFF_LENGTHS_ERROR added.')
     else:
         print('Writing merged.var.gz to disk')
         shutil.copy(os.path.join(s.freemuxlet_dir, f'{s.sample}.var.gz'),
