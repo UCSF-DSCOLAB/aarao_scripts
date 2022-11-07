@@ -3,7 +3,6 @@ import gzip
 import os
 import pandas as pd
 import shutil
-import difflib
 
 def main():
     parser = argparse.ArgumentParser()
