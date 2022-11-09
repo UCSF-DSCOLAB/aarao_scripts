@@ -17,7 +17,7 @@ extension=${BAMFILE##*.}
 bindmount_string=$(python3 ${COLLAPSEDIRSCRIPT} --prefixB $(dirname ${BAMFILE}) $(dirname ${BARCODELIST}) $(dirname ${ONEKGENOMESVCF}) ${POPSCLE_HELPER_TOOLS_DIR} ${PWD})
 
 # Create filtered BAM with only the reads dsc-pileup needs.
-if [[ FMX_ONLY == 'FALSE' ]]
+if [[ $FMX_ONLY == 'FALSE' ]]
 then
     singularity exec \
         ${bindmount_string} \
@@ -29,7 +29,7 @@ then
         ${ONEKGENOMESVCF} \
         ${prefix}_filtered.${extension}
 
-    if [[ NO_TAG_UMI == 'FALSE' ]]
+    if [[ $NO_TAG_UMI == 'FALSE' ]]
     then
 	UMI_TAG_STRING="--tag-UMI UB"
     else
@@ -50,7 +50,7 @@ then
         --out ${SAMPLE}
 fi
 
-if [[ DSC_ONLY == 'FALSE' ]] 
+if [[ $DSC_ONLY == 'FALSE' ]] 
 then
     singularity exec \
         ${bindmount_string} \

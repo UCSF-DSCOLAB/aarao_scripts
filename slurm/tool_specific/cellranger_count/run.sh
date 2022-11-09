@@ -23,7 +23,7 @@ csv_folders=($(tail -n+2 ${LIBRARIES_CSV} | cut -f 1 -d "," | xargs))
 
 bindmount_string=$(python3 ${COLLAPSEDIRSCRIPT} --prefixB $(dirname ${LIBRARIES_CSV}) ${csv_folders[@]} ${featureref_dirname} ${TRANSCRIPTOME} ${PWD})
 
-if [[ INCLUDE_INTRONS == 'FALSE' ]]
+if [[ $INCLUDE_INTRONS == 'FALSE' ]]
 then
     INTRONS_STRING=""
 else

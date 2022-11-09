@@ -11,7 +11,6 @@ if [[ ${TMPDIR-"EMPTY"} ==  "EMPTY" ]]
 mkdir ${TMPDIR}/demuxlet_${SAMPLE}
 cd ${TMPDIR}/demuxlet_${SAMPLE}
 
-echo "BAMFILE: $BAMFILE"
 prefix=$(basename ${BAMFILE%.*})
 extension=${BAMFILE##*.}
 
@@ -20,9 +19,10 @@ echo $bindmount_string
 
 
 # Create filtered BAM with only the reads dsc-pileup needs.
-if [[ DMX_ONLY == 'FALSE' ]]
+if [[ $DMX_ONLY == 'FALSE' ]]
 then
 
+echo "not DMX_ONLY"
     singularity exec \
         ${bindmount_string} \
         -B ${TMPDIR}:/tmp/ \
@@ -33,7 +33,7 @@ then
         ${ONEKGENOMESVCF} \
         ${prefix}_filtered.${extension}
 
-    if [[ NO_TAG_UMI == 'FALSE' ]]
+    if [[ $NO_TAG_UMI == 'FALSE' ]]
     then
         UMI_TAG_STRING="--tag-UMI UB"
     else
@@ -54,8 +54,9 @@ then
         --out ${SAMPLE}
 fi
 
-if [[ DSC_ONLY == 'FALSE' ]]
+if [[ $DSC_ONLY == 'FALSE' ]]
 then
+echo "Not DSC_ONLY"
 singularity exec \
                 ${bindmount_string} \
                 -B ${TMPDIR}:/tmp/ \
@@ -66,7 +67,7 @@ singularity exec \
                         --vcf ${VCF} \
                         --field GT \
                         --group-list ${BARCODELIST}
-fi
+fi 
 
 if [ -d ${OUTDIR} ]
     then
