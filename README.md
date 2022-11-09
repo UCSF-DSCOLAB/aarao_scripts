@@ -17,8 +17,8 @@ to create a personal clone of this repo.  Then, you can personally control timin
 1. Create a branch called `<your_initials_or_username>/<HYPHENATED SHORT STRING DESCRIBING ISSUE BEING FIXED>`
 2. Make changes and commit (squash and rebase if necessary).
 3. Make a Pull Request, following the instructions of the PR template to include a description and request reviewers.
-4. (Optional depending on the scope of scripts being updated) Alert all DSCoLab members of your intended changes. Lab meeting can be a good time to do this.
-5. PRs which affect data processing pipelines can be merged only after successful review.
+4. (Optional depending on the scope of scripts being updated) Alert the DS team of your intended changes. Lab meeting can be a good time to do this.
+5. PRs which affect data processing pipelines can be merged only after successful review from at least one DS team member.
 
 ## Expectations from all scripts (may or may not be implemented)
 1. Running script with no arguments, `-h`, or `--help` should print usage and purpose of script.
