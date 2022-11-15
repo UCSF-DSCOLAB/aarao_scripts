@@ -10,6 +10,7 @@ def main():
                         '`freemuxlet_dir`, and optionally `barcode_suffix`. The suffix need not '
                         'contain field separator (e.g. _2) since we will automatically apply `--`.')
     parser.add_argument('--outdir', required=True, help='An output directory')
+    parser.add_argument('--ignore_diff_lengths_error', action='store_true')
     params = parser.parse_args()
 
     fmx_ids = pd.read_table(params.freemuxlet_dir_tsv, sep="\t", index_col=None, header=0)
@@ -51,10 +52,19 @@ def main():
         num_lines[s.sample] = x
 
     if fails > 0:
-        print(f'Found {fails} failures. Full list below.')
-        for x, y in num_lines.items():
-            print(f'{x}: {y}')
-        raise RuntimeError('Freemuxlet runs used different VCFs for processing')
+        if params.ignore_diff_lengths_error:
+            longest = max(num_lines, key=num_lines.get)
+            longest_idx = [i for i, x in enumerate(fmx_ids['sample']==longest) if x][0]
+            if len(set(list(num_lines.values()))) != 1:
+                print(f'!!Found var.gz files of different lengths, but assuming this is not reference VCF-related, and using the longest one, {longest}')
+            print('Writing merged.var.gz to disk')
+            shutil.copy(os.path.join(fmx_ids.loc[longest_idx, 'freemuxlet_dir'], f'{longest}.var.gz'),
+                        os.path.join(outdir, 'merged.var.gz'))
+        else:
+            print(f'Found {fails} failures. Full list below.')
+            for x, y in num_lines.items():
+                print(f'{x}: {y}')
+            raise RuntimeError('Freemuxlet runs may have used different VCFs for processing, or it may be just a freemuxlet bug. Check if the shorter .var files are simply missing some rows from the bottom of the longer counterparts.  If so, remove the merge directory and run again with --ignore_diff_lengths_error added.')
     else:
         print('Writing merged.var.gz to disk')
         shutil.copy(os.path.join(s.freemuxlet_dir, f'{s.sample}.var.gz'),
