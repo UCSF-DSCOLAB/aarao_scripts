@@ -1,4 +1,5 @@
 #!/bin/bash
+
 set -e
 set -o nounset
 
@@ -12,13 +13,12 @@ EOF
 
 read -r -d '' LOCAL_OPTIONAL_HELPTEXT  << EOF || true
 ## OPTIONAL PARAMETERS ##
-CONTAINER          : The singularity container to use (/krummellab/data1/singularity_images/cellranger/6.0.2/cellranger.sif)
+CONTAINER          : The singularity container to use (default: /krummellab/data1/singularity_images/cellranger-atac/2.0.0/cellranger-atac.sif)
 SAMPLE             : The name of the sample (parsed from LIBRARIES_CSV by default)
-TRANSCRIPTOME      : Path to 10X Indexes (default: /krummellab/data1/ipi/data/refs/10x/refdata-gex-GRCh38-2020-A)
+REFERENCE          : Path to 10X Indexes (default: /krummellab/data1/ipi/data/refs/10x/refdata-cellranger-arc-GRCh38-2020-A-2.0.0)
 CHEMISTRY          : 10X Chemistry. (default: auto)
-FEATUREREF         : Feature reference file for CITE-Seq or hashtags (default: /krummellab/data1/ipi/data/refs/10x/citeseq_resources/TotalSeqC_Human_Universal_Cocktail_v1.csv)
-INCLUDE_INTRONS    : positional arg to add --include-introns for snRNA-seq
 EOF
+
 
 read -r -d '' GLOBAL_OVERRIDE_HELPTEXT  << EOF || true
 ## GLOBAL OVERRIDES ##
@@ -54,13 +54,9 @@ fi
 
 if [[ ! "${RECEIVED_NAMED_ARGS[@]}" =~ "SAMPLE" ]]
 then
-    if grep -q "Gene Expression" ${LIBRARIES_CSV} || [ "$CELLRANGERVERSION" == "3.0.2" ]
-    then
-        SAMPLE=`grep "Gene Expression" ${LIBRARIES_CSV} | awk -F"," '{print $2}'`
-    else
-        # Assume the second line has the correct name 
-        SAMPLE=`head -2 ${LIBRARIES_CSV} | tail -1 | awk -F"," '{print $2}'`
-    fi
+   # Assume the second line has the correct name 
+   SAMPLE=`head -2 ${LIBRARIES_CSV} | tail -1 | awk -F"," '{print $2}'`
+
 fi
 
 # Override defaults only if the user hasn't specified
@@ -79,25 +75,17 @@ then
     MEMPERCPU="13gb"
 fi
 
-if [[ ! "${RECEIVED_NAMED_ARGS[@]}" =~ "TRANSCRIPTOME" ]]
+if [[ ! "${RECEIVED_NAMED_ARGS[@]}" =~ "REFERENCE" ]]
 then
-    TRANSCRIPTOME=/krummellab/data1/ipi/data/refs/10x/refdata-gex-GRCh38-2020-A
+    REFERENCE=/krummellab/data1/ipi/data/refs/10x/refdata-cellranger-arc-GRCh38-2020-A-2.0.0
 fi
 
-if [[ ! "${RECEIVED_NAMED_ARGS[@]}" =~ "FEATUREREF" ]]
-then
-    FEATUREREF=/krummellab/data1/ipi/data/refs/10x/citeseq_resources/TotalSeqC_Human_Universal_Cocktail_v1.csv
-else
-    if [ ! -f ${FEATUREREF} ]
-    then
-       echo -e "\nERROR: FEATUREREF file does not exist: ${FEATUREREF}\n" 
-    fi
-fi
 
 if [[ ! "${RECEIVED_NAMED_ARGS[@]}" =~ "CHEMISTRY" ]]
 then
     CHEMISTRY="auto"
 else
+    #TODO check what this is allowed to be for snATAC
     allowed=('auto' 'threeprime' 'fiveprime' 'SC3Pv1' 'SC3Pv2' 'SC3Pv3' 'SC5P-PE' 'SC5P-R2')
     if [[ ! "${allowed[@]}" =~ "${CHEMISTRY}" ]]
     then
@@ -108,7 +96,7 @@ fi
 
 if [[ ! "${RECEIVED_NAMED_ARGS[@]}" =~ "CONTAINER" ]]
 then
-    CONTAINER="/krummellab/data1/singularity_images/cellranger/6.0.2/cellranger.sif"
+    CONTAINER="/krummellab/data1/singularity_images/cellranger-atac/2.0.0/cellranger-atac.sif"
 else
     if [ ! -f ${CONTAINER} ]
     then
@@ -116,25 +104,20 @@ else
     fi
 fi
 
-
-if [[ "${POSITIONAL_ARGS[@]}" =~ "INCLUDE_INTRONS" ]]
-then
-    INCLUDE_INTRONS=TRUE
-else
-    INCLUDE_INTRONS=FALSE
-fi
-
-
 LOCAL_EXPORT_VARS="\
 LIBRARIES_CSV=$(readlink -e ${LIBRARIES_CSV}),\
 OUTDIR=$(readlink -f ${OUTDIR}),\
 SAMPLE=${SAMPLE},\
 CONTAINER=$(readlink -e ${CONTAINER}),\
-FEATUREREF=${FEATUREREF},\
-TRANSCRIPTOME=$(readlink -e ${TRANSCRIPTOME}),\
-CHEMISTRY=${CHEMISTRY},\
-INCLUDE_INTRONS=${INCLUDE_INTRONS}"
+REFERENCE=$(readlink -e ${REFERENCE}),\
+CHEMISTRY=${CHEMISTRY}"
 
-JOBNAME=cellranger_count_${SAMPLE}
+JOBNAME=cellranger_atac_count_${SAMPLE}
 
 source $(dirname ${0})/../final_spawn.sh
+
+
+
+
+
+

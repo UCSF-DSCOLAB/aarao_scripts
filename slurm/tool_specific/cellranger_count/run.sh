@@ -23,8 +23,18 @@ csv_folders=($(tail -n+2 ${LIBRARIES_CSV} | cut -f 1 -d "," | xargs))
 
 bindmount_string=$(python3 ${COLLAPSEDIRSCRIPT} --prefixB $(dirname ${LIBRARIES_CSV}) ${csv_folders[@]} ${featureref_dirname} ${TRANSCRIPTOME} ${PWD})
 
+if [[ $INCLUDE_INTRONS == 'FALSE' ]]
+then
+    INTRONS_STRING=""
+else
+    INTRONS_STRING="--include-introns"
+fi
+
+
+
 singularity exec \
             ${bindmount_string} \
+            -B ${TMPDIR}:/tmp/ \
             --pwd ${PWD} \
             ${CONTAINER} cellranger count \
                                 --id=${SAMPLE} \
@@ -33,7 +43,7 @@ singularity exec \
                                 --chemistry=${CHEMISTRY} \
                                 --transcriptome=${TRANSCRIPTOME} \
                                 --localcores=${SLURM_CPUS_PER_TASK} \
-                                --localmem=${USABLEMEMORY}
+                                --localmem=${USABLEMEMORY} ${INTRONS_STRING}
 
 if [[ -d ${OUTDIR} ]]
 then
